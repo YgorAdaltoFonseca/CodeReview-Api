@@ -1,0 +1,69 @@
+
+### Maven ###
+target/
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### Spring Boot ###
+HELP.md
+
+### Environment variables and secrets ###
+.env
+.env.*
+!.env.example
+!.env.template
+
+### Logs ###
+*.log
+logs/
+
+### Local databases and Docker data ###
+postgres-data/
+pgadmin-data/
+
+### Java ###
+*.class
+hs_err_pid*
+replay_pid*
+
+### STS / Eclipse ###
+.apt_generated/
+.classpath
+.factorypath
+.project
+.settings/
+.springBeans
+.sts4-cache/
+
+### IntelliJ IDEA ###
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/
+
+### Operating system ###
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+### Certificates and private keys ###
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
