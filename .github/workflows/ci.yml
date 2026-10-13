@@ -1,4 +1,5 @@
 
+
 name: CI - CodeReview API
 
 on:
@@ -7,12 +8,14 @@ on:
       - develop
       - release
       - main
+      - 'feature/**'
 
   pull_request:
     branches:
       - develop
       - release
       - main
+
 
 permissions:
   contents: read
