@@ -30,30 +30,26 @@ public class SecurityConfig {
 
         http
                 .csrf(csrf -> csrf.disable())
-
-                .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
-
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 HttpMethod.POST,
                                 "/api/auth/register",
                                 "/api/auth/login"
                         ).permitAll()
-
                         .requestMatchers(
                                 "/swagger-ui.html",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**"
                         ).permitAll()
-
                         .anyRequest().authenticated()
-
-                ) .oauth2ResourceServer(oauth2 -> oauth2
-                        .jwt(jwt -> {})
+                )
+                .oauth2ResourceServer(oauth2 ->
+                        oauth2.jwt(jwt -> {
+                        })
                 );
-
 
         return http.build();
     }
@@ -65,9 +61,24 @@ public class SecurityConfig {
 
     @Bean
     public JwtDecoder jwtDecoder(
-            @Value("${jwt.secret}") String secret
-    ) {
-        byte[] keyBytes = Base64.getDecoder().decode(secret);
+            @Value("${jwt.secret}") String secret) {
+
+        byte[] keyBytes;
+
+        try {
+            keyBytes = Base64.getDecoder().decode(secret);
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalStateException(
+                    "JWT_SECRET precisa ser uma string Base64 válida.",
+                    exception
+            );
+        }
+
+        if (keyBytes.length < 32) {
+            throw new IllegalStateException(
+                    "JWT_SECRET precisa decodificar para pelo menos 32 bytes."
+            );
+        }
 
         SecretKey key = new SecretKeySpec(keyBytes, "HmacSHA256");
 

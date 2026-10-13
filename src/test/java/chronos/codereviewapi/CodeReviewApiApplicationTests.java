@@ -11,5 +11,4 @@ class CodeReviewApiApplicationTests {
     @Test
     void contextLoads() {
     }
-
 }

@@ -1,4 +1,4 @@
-package chronos.codereviewapi.repository;
+package chronos.codereviewapi.repositories;
 
 import chronos.codereviewapi.entities.UserEntity;
 import org.springframework.data.jpa.repository.JpaRepository;

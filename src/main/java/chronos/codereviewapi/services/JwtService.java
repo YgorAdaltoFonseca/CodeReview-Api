@@ -10,6 +10,7 @@ import org.springframework.security.oauth2.jwt.JwsHeader;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
+
 public class JwtService {
 
     private final JwtEncoder jwtEncoder;
@@ -23,10 +24,19 @@ public class JwtService {
 
         JwtClaimsSet claims = JwtClaimsSet.builder()
                 .issuer("codereview-api")
-                .subject(user.getEmail())
+                .subject(user.getUsername())
                 .issuedAt(now)
                 .expiresAt(now.plus(15, ChronoUnit.MINUTES))
-                .claim("role", user.getRole().name())
+                .claim(
+                        "role",
+                        user.getAuthorities()
+                                .stream()
+                                .findFirst()
+                                .orElseThrow(() ->
+                                        new IllegalStateException("User has no authority"))
+                                .getAuthority()
+                                .replace("ROLE_", "")
+                )
                 .build();
 
         JwsHeader header = JwsHeader.with(MacAlgorithm.HS256)
