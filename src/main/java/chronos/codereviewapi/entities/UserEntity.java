@@ -96,4 +96,8 @@ public class UserEntity implements UserDetails {
     public boolean isCredentialsNonExpired() {
         return true;
     }
+
+    public Long getId() {
+        return id;
+    }
 }
