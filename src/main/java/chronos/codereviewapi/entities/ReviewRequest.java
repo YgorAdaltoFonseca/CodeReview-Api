@@ -1,8 +1,7 @@
 package chronos.codereviewapi.entities;
 
 
-import chronos.codereviewapi.enums.InquiryStatus;
-import chronos.codereviewapi.enums.Status;
+import chronos.codereviewapi.enums.ReviewStatus;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -10,16 +9,15 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.Instant;
-import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "inquiry_table")
+@Table(name = "reviewrequest_table")
 @Getter
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class InquiryEntity {
+public class ReviewRequest {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -28,7 +26,7 @@ public class InquiryEntity {
     @Column(nullable = false , length = 100)
     @Size(max = 100)
     @NotBlank
-    private String name;
+    private String title;
 
     @Column(nullable = false , length = 2000)
     @Size(max = 2000)
@@ -38,22 +36,26 @@ public class InquiryEntity {
     @Column(nullable = false , length = 2048)
     @Size(max = 2048)
     @NotBlank
-    private String url;
+    private String repositoryURL;
+
+    @Column(nullable = false , length = 2048)
+    @Size(max = 2048)
+    @NotBlank
+    private String pullRequestURL;
 
     @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private Status status = Status.OPEN;
+    private ReviewStatus status = ReviewStatus.OPEN;
 
-    @Builder.Default
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private InquiryStatus inquiryStatus = InquiryStatus.WAITING;
 
-    @Column(length = 2000)
-    @Size(max = 2000)
-    private String comment;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "requester_id", nullable = false)
+    private UserEntity requesterId;
 
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "reviewer_id", nullable = false)
+    private UserEntity reviewerId;
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
