@@ -17,7 +17,7 @@ import java.time.Instant;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class ReviewRequest {
+public class ReviewRequestEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
