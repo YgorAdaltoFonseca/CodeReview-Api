@@ -1,4 +1,4 @@
-package chronos.codereviewapi.dtos.requests;
+package chronos.codereviewapi.dtos.requests.auth;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;

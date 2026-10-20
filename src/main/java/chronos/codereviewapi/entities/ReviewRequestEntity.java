@@ -59,5 +59,9 @@ public class ReviewRequestEntity {
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
+    private Instant updatedAt;
+
+    @CreationTimestamp
+    @Column(nullable = false, updatable = false)
     private Instant createdAt;
 }

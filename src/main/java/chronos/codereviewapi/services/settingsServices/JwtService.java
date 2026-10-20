@@ -1,4 +1,4 @@
-package chronos.codereviewapi.services;
+package chronos.codereviewapi.services.settingsServices;
 
 import chronos.codereviewapi.entities.UserEntity;
 import lombok.RequiredArgsConstructor;

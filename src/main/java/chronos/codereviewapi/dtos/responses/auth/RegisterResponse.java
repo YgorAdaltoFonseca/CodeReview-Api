@@ -1,4 +1,4 @@
-package chronos.codereviewapi.dtos.responses;
+package chronos.codereviewapi.dtos.responses.auth;
 
 import chronos.codereviewapi.entities.UserEntity;
 import chronos.codereviewapi.enums.Role;

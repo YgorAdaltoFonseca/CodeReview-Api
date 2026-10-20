@@ -1,11 +1,11 @@
 
 package chronos.codereviewapi.controllers;
 
-import chronos.codereviewapi.dtos.requests.LoginRequest;
-import chronos.codereviewapi.dtos.requests.RegisterRequest;
-import chronos.codereviewapi.dtos.responses.LoginResponse;
-import chronos.codereviewapi.dtos.responses.RegisterResponse;
-import chronos.codereviewapi.services.AuthService;
+import chronos.codereviewapi.dtos.requests.auth.LoginRequest;
+import chronos.codereviewapi.dtos.requests.auth.RegisterRequest;
+import chronos.codereviewapi.dtos.responses.auth.LoginResponse;
+import chronos.codereviewapi.dtos.responses.auth.RegisterResponse;
+import chronos.codereviewapi.services.settingsServices.AuthService;
 
 import jakarta.validation.Valid;
 
