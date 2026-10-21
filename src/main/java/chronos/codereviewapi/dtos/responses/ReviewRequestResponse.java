@@ -12,8 +12,8 @@ public record ReviewRequestResponse(
         String repositoryUrl ,
         String pullRequestURL ,
         ReviewStatus status ,
-        UserEntity requester ,
-        UserEntity reviewer ,
+        UserEntity requesterId ,
+        UserEntity reviewerId ,
         Instant updatedAt ,
         Instant createdAt
 

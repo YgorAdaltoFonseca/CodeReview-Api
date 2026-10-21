@@ -13,23 +13,26 @@ import org.springframework.stereotype.Service;
 public class AuthenticatedUserService {
     private final UserRepository userRepository;
 
+
     public UserEntity getAuthenticatedUser() {
         Authentication authentication =
                 SecurityContextHolder.getContext().getAuthentication();
 
-        Long userId;
-
-        try {
-            userId = Long.parseLong(authentication.getName());
-        } catch (NumberFormatException exception) {
-            throw new UserNotFoundException("Invalid user identity in token");
+        if (authentication == null || !authentication.isAuthenticated()
+                || authentication.getName() == null) {
+            throw new UserNotFoundException("No authenticated user found");
         }
 
-        return userRepository.findById(userId)
+        String email = authentication.getName();
+
+        return userRepository.findByEmail(email)
                 .filter(UserEntity::isEnabled)
                 .orElseThrow(() ->
-                        new UserNotFoundException("Authenticated user not found!")
+                        new UserNotFoundException(
+                                "Authenticated user not found!"
+                        )
                 );
     }
+
 
 }
