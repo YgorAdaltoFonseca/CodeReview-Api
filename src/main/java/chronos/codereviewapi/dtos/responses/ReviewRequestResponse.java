@@ -1,6 +1,5 @@
 package chronos.codereviewapi.dtos.responses;
 
-import chronos.codereviewapi.entities.UserEntity;
 import chronos.codereviewapi.enums.ReviewStatus;
 
 import java.time.Instant;
@@ -12,8 +11,8 @@ public record ReviewRequestResponse(
         String repositoryUrl ,
         String pullRequestURL ,
         ReviewStatus status ,
-        UserEntity requesterId ,
-        UserEntity reviewerId ,
+        UserSummaryResponse requesterId ,
+        UserSummaryResponse reviewerId ,
         Instant updatedAt ,
         Instant createdAt
 

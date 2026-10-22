@@ -97,7 +97,5 @@ public class UserEntity implements UserDetails {
         return true;
     }
 
-    public Long getId() {
-        return id;
-    }
+
 }

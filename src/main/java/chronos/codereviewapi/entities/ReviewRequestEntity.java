@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.Instant;
 
@@ -57,7 +58,7 @@ public class ReviewRequestEntity {
     @JoinColumn(name = "reviewer_id", nullable = false)
     private UserEntity reviewerId;
 
-    @CreationTimestamp
+    @UpdateTimestamp
     @Column(nullable = false, updatable = false)
     private Instant updatedAt;
 

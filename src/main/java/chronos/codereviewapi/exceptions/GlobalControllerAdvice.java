@@ -1,5 +1,8 @@
+
 package chronos.codereviewapi.exceptions;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -13,12 +16,14 @@ import java.util.stream.Collectors;
 @RestControllerAdvice
 public class GlobalControllerAdvice {
 
+    private static final Logger log =
+            LoggerFactory.getLogger(GlobalControllerAdvice.class);
+
     // USER NOT FOUND - 404
     @ExceptionHandler(UserNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleUserNotFound(
             UserNotFoundException ex
     ) {
-
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.NOT_FOUND.value(),
                 ex.getMessage(),
@@ -35,7 +40,6 @@ public class GlobalControllerAdvice {
     public ResponseEntity<ErrorResponse> handleEmailAlreadyExists(
             EmailAlreadyExistsException ex
     ) {
-
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.CONFLICT.value(),
                 ex.getMessage(),
@@ -52,7 +56,6 @@ public class GlobalControllerAdvice {
     public ResponseEntity<ErrorResponse> handleIllegalArgumentException(
             IllegalArgumentException ex
     ) {
-
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.BAD_REQUEST.value(),
                 ex.getMessage(),
@@ -64,15 +67,14 @@ public class GlobalControllerAdvice {
                 .body(error);
     }
 
-    // INVALID PATH VARIABLE / PARAMETER - 400
+    // INVALID PATH VARIABLE / REQUEST PARAMETER - 400
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ErrorResponse> handleMethodArgumentTypeMismatch(
             MethodArgumentTypeMismatchException ex
     ) {
-
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.BAD_REQUEST.value(),
-                "Valor inválido para o parâmetro: " + ex.getName(),
+                "Invalid value for parameter: " + ex.getName(),
                 LocalDateTime.now()
         );
 
@@ -81,17 +83,17 @@ public class GlobalControllerAdvice {
                 .body(error);
     }
 
-    // @VALID - 400
+    // VALIDATION ERRORS (@Valid) - 400
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidation(
             MethodArgumentNotValidException ex
     ) {
-
         String message = ex.getBindingResult()
                 .getFieldErrors()
                 .stream()
                 .map(error ->
-                        error.getField() + ": " + error.getDefaultMessage()
+                        error.getField() + ": "
+                                + error.getDefaultMessage()
                 )
                 .collect(Collectors.joining(", "));
 
@@ -106,15 +108,17 @@ public class GlobalControllerAdvice {
                 .body(error);
     }
 
-    // ERRO GENÉRICO - 500
+    // GENERIC INTERNAL SERVER ERROR - 500
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(
             Exception ex
     ) {
+        // Log the complete exception and stack trace for debugging.
+        log.error("An unexpected error occurred while processing the request", ex);
 
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
-                "Ocorreu um erro interno no servidor.",
+                "An internal server error occurred.",
                 LocalDateTime.now()
         );
 

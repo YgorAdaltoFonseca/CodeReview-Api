@@ -8,10 +8,9 @@ import chronos.codereviewapi.services.settingsServices.AuthenticatedUserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
@@ -30,6 +29,14 @@ public class ReviewRequestController {
                 reviewRequestService.createReviewRequest(reviewRequestRequest)
         );
 
+    }
+
+    @GetMapping("/list")
+    public ResponseEntity<List<ReviewRequestResponse>> getAllReviewRequests(){
+        List<ReviewRequestResponse> reviewRequestResponses =
+                reviewRequestService.listReviewRequests();
+
+        return ResponseEntity.ok(reviewRequestResponses);
     }
 
 
