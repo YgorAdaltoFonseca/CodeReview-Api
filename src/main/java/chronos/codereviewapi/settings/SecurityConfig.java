@@ -18,6 +18,8 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
 
 import javax.crypto.SecretKey;
@@ -36,7 +38,9 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session ->
-                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                        session.sessionCreationPolicy(
+                                SessionCreationPolicy.STATELESS
+                        )
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
@@ -52,11 +56,33 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer(oauth2 ->
-                        oauth2.jwt(jwt -> {
-                        })
+                        oauth2.jwt(jwt ->
+                                jwt.jwtAuthenticationConverter(
+                                        jwtAuthenticationConverter()
+                                )
+                        )
                 );
 
         return http.build();
+    }
+
+    @Bean
+    public JwtAuthenticationConverter jwtAuthenticationConverter() {
+
+        JwtGrantedAuthoritiesConverter authoritiesConverter =
+                new JwtGrantedAuthoritiesConverter();
+
+        authoritiesConverter.setAuthoritiesClaimName("role");
+        authoritiesConverter.setAuthorityPrefix("ROLE_");
+
+        JwtAuthenticationConverter converter =
+                new JwtAuthenticationConverter();
+
+        converter.setJwtGrantedAuthoritiesConverter(
+                authoritiesConverter
+        );
+
+        return converter;
     }
 
     @Bean
@@ -70,7 +96,10 @@ public class SecurityConfig {
     ) {
         byte[] keyBytes = Base64.getDecoder().decode(secret);
 
-        SecretKey key = new SecretKeySpec(keyBytes, "HmacSHA256");
+        SecretKey key = new SecretKeySpec(
+                keyBytes,
+                "HmacSHA256"
+        );
 
         return new NimbusJwtEncoder(
                 new ImmutableSecret<>(key)
@@ -79,8 +108,8 @@ public class SecurityConfig {
 
     @Bean
     public JwtDecoder jwtDecoder(
-            @Value("${jwt.secret}") String secret) {
-
+            @Value("${jwt.secret}") String secret
+    ) {
         byte[] keyBytes;
 
         try {
@@ -98,7 +127,10 @@ public class SecurityConfig {
             );
         }
 
-        SecretKey key = new SecretKeySpec(keyBytes, "HmacSHA256");
+        SecretKey key = new SecretKeySpec(
+                keyBytes,
+                "HmacSHA256"
+        );
 
         return NimbusJwtDecoder.withSecretKey(key)
                 .macAlgorithm(MacAlgorithm.HS256)
