@@ -54,9 +54,11 @@ public class ReviewRequestEntity {
     @JoinColumn(name = "requester_id", nullable = false)
     private UserEntity requesterId;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "reviewer_id", nullable = false)
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reviewer_id")
     private UserEntity reviewerId;
+
 
     @UpdateTimestamp
     @Column(nullable = false, updatable = false)
