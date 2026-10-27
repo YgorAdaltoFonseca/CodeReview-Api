@@ -225,6 +225,56 @@ public class ReviewRequestService {
         return toResponse(savedRequest);
     }
 
+    // CLAIM AN OPEN REQUEST FOR THE AUTHENTICATED REVIEWER
+    @Transactional
+    public ReviewRequestResponse claimReviewRequest(Long reviewRequestId) {
+        UserEntity reviewer =
+                authenticatedUserService.getAuthenticatedUser();
+
+        if (reviewer.getRole() != Role.REVIEWER) {
+            throw new AccessDeniedException(
+                    "Only reviewers can claim review requests."
+            );
+        }
+
+        ReviewRequestEntity reviewRequest =
+                reviewRequestRepository.findByIdForUpdate(reviewRequestId)
+                        .orElseThrow(() ->
+                                new ReviewRequestNotFoundException(
+                                        reviewRequestId
+                                )
+                        );
+
+        if (reviewRequest.getRequesterId().getId().equals(reviewer.getId())) {
+            throw new AccessDeniedException(
+                    "A developer cannot review their own request."
+            );
+        }
+
+        if (reviewRequest.getStatus() != ReviewStatus.OPEN
+                || reviewRequest.getReviewerId() != null) {
+            throw new ReviewRequestConflictException(
+                    "This review request is no longer available to claim."
+            );
+        }
+
+        reviewRequest.setReviewerId(reviewer);
+        reviewRequest.setStatus(ReviewStatus.IN_REVIEW);
+        ReviewRequestEntity savedRequest =
+                reviewRequestRepository.save(reviewRequest);
+
+        reviewStatusHistoryRepository.save(
+                ReviewStatusHistoryEntity.builder()
+                        .reviewRequest(savedRequest)
+                        .changedById(reviewer)
+                        .oldStatus(ReviewStatus.OPEN)
+                        .newStatus(ReviewStatus.IN_REVIEW)
+                        .build()
+        );
+
+        return toResponse(savedRequest);
+    }
+
     private ReviewRequestEntity getRequestForDeveloperUpdate(
             Long reviewRequestId,
             UserEntity user

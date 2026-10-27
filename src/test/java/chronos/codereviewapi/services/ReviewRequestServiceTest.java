@@ -296,6 +296,80 @@ class ReviewRequestServiceTest {
         verify(reviewRequestRepository, never()).save(reviewRequest);
     }
 
+    @Test
+    void reviewerClaimsOpenRequestAndHistoryIsRecorded() {
+        UserEntity reviewer = createUser(8L, Role.REVIEWER);
+        ReviewRequestEntity reviewRequest = createReviewRequest(
+                createUser(7L, Role.DEVELOPER),
+                null,
+                ReviewStatus.OPEN
+        );
+        when(authenticatedUserService.getAuthenticatedUser())
+                .thenReturn(reviewer);
+        when(reviewRequestRepository.findByIdForUpdate(42L))
+                .thenReturn(Optional.of(reviewRequest));
+        when(reviewRequestRepository.save(reviewRequest))
+                .thenReturn(reviewRequest);
+
+        ReviewRequestResponse response =
+                reviewRequestService.claimReviewRequest(42L);
+
+        ArgumentCaptor<ReviewStatusHistoryEntity> historyCaptor =
+                ArgumentCaptor.forClass(ReviewStatusHistoryEntity.class);
+        verify(reviewStatusHistoryRepository).save(historyCaptor.capture());
+        ReviewStatusHistoryEntity history = historyCaptor.getValue();
+
+        assertEquals(ReviewStatus.IN_REVIEW, response.status());
+        assertEquals(reviewer, reviewRequest.getReviewerId());
+        assertEquals(ReviewStatus.OPEN, history.getOldStatus());
+        assertEquals(ReviewStatus.IN_REVIEW, history.getNewStatus());
+        assertSame(reviewer, history.getChangedById());
+    }
+
+    @Test
+    void reviewerCannotClaimOwnRequest() {
+        UserEntity reviewer = createUser(8L, Role.REVIEWER);
+        ReviewRequestEntity reviewRequest = createReviewRequest(
+                reviewer,
+                null,
+                ReviewStatus.OPEN
+        );
+        when(authenticatedUserService.getAuthenticatedUser())
+                .thenReturn(reviewer);
+        when(reviewRequestRepository.findByIdForUpdate(42L))
+                .thenReturn(Optional.of(reviewRequest));
+
+        assertThrows(
+                AccessDeniedException.class,
+                () -> reviewRequestService.claimReviewRequest(42L)
+        );
+
+        verify(reviewRequestRepository, never()).save(reviewRequest);
+        verifyNoInteractions(reviewStatusHistoryRepository);
+    }
+
+    @Test
+    void reviewerCannotClaimRequestThatIsNoLongerOpen() {
+        UserEntity reviewer = createUser(8L, Role.REVIEWER);
+        ReviewRequestEntity reviewRequest = createReviewRequest(
+                createUser(7L, Role.DEVELOPER),
+                null,
+                ReviewStatus.CANCELLED
+        );
+        when(authenticatedUserService.getAuthenticatedUser())
+                .thenReturn(reviewer);
+        when(reviewRequestRepository.findByIdForUpdate(42L))
+                .thenReturn(Optional.of(reviewRequest));
+
+        assertThrows(
+                ReviewRequestConflictException.class,
+                () -> reviewRequestService.claimReviewRequest(42L)
+        );
+
+        verify(reviewRequestRepository, never()).save(reviewRequest);
+        verifyNoInteractions(reviewStatusHistoryRepository);
+    }
+
     private UserEntity createUser(Long id, Role role) {
         return UserEntity.builder()
                 .id(id)

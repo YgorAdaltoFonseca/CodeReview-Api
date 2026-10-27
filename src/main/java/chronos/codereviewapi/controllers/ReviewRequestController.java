@@ -85,4 +85,14 @@ public class ReviewRequestController {
                 reviewRequestService.cancelReviewRequest(id)
         );
     }
+
+    // CLAIM AN OPEN REQUEST FOR REVIEW
+    @PatchMapping("/{id}/claim")
+    public ResponseEntity<ReviewRequestResponse> claimReviewRequest(
+            @PathVariable Long id
+    ) {
+        return ResponseEntity.ok(
+                reviewRequestService.claimReviewRequest(id)
+        );
+    }
 }

@@ -73,4 +73,30 @@ class ReviewRequestControllerTest {
         assertEquals(response, result.getBody());
         verify(service).getReviewRequest(42L);
     }
+
+    @Test
+    void claimReviewRequestReturnsUpdatedRequest() {
+        ReviewRequestService service = mock(ReviewRequestService.class);
+        ReviewRequestController controller =
+                new ReviewRequestController(service);
+        ReviewRequestResponse response = new ReviewRequestResponse(
+                42L,
+                "Review authentication",
+                "Check token handling",
+                "https://github.com/ygor/project",
+                "https://github.com/ygor/project/pull/12",
+                ReviewStatus.IN_REVIEW,
+                null,
+                null,
+                null,
+                null
+        );
+        when(service.claimReviewRequest(42L)).thenReturn(response);
+
+        var result = controller.claimReviewRequest(42L);
+
+        assertEquals(200, result.getStatusCode().value());
+        assertEquals(ReviewStatus.IN_REVIEW, result.getBody().status());
+        verify(service).claimReviewRequest(42L);
+    }
 }
