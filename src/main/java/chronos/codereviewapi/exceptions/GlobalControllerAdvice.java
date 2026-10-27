@@ -11,6 +11,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.stream.Collectors;
@@ -172,6 +173,23 @@ public class GlobalControllerAdvice {
                 .body(error);
     }
 
+    // EXPECTED HTTP ERRORS - preserve status set by application services
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ErrorResponse> handleResponseStatusException(
+            ResponseStatusException ex
+    ) {
+        int status = ex.getStatusCode().value();
+        String message = ex.getReason() == null
+                ? "Request could not be completed."
+                : ex.getReason();
+        ErrorResponse error = new ErrorResponse(
+                status,
+                message,
+                LocalDateTime.now()
+        );
+
+        return ResponseEntity.status(ex.getStatusCode()).body(error);
+    }
     // GENERIC INTERNAL SERVER ERROR - 500
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(

@@ -1,8 +1,9 @@
 package chronos.codereviewapi.exceptions;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.web.server.ResponseStatusException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -18,6 +19,16 @@ class GlobalControllerAdviceTest {
 
         assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
         assertEquals("Invalid email or password.", response.getBody().message());
+    }
+
+    @Test
+    void responseStatusExceptionPreservesItsHttpStatusAndSafeReason() {
+        var response = advice.handleResponseStatusException(
+                new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found.")
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertEquals("User not found.", response.getBody().message());
     }
 
     @Test
