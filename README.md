@@ -1,0 +1,118 @@
+# CodeReview API
+
+A REST API for managing code review requests. Developers create and track requests, reviewers claim requests and record comments or decisions, and administrators manage user roles.
+
+## Features
+
+- User registration and JWT authentication
+- Role based access for developers, reviewers, and administrators
+- Review request creation, listing, filtering, pagination, updates, and cancellation
+- Exclusive reviewer assignment with database locking
+- Reviewer comments, decisions, and immutable status history
+- Paginated administrative user listing and reviewer promotion
+- OpenAPI documentation with Swagger UI
+
+## Technology
+
+- Java 21 and Spring Boot
+- Spring Security and JWT
+- Spring Data JPA and PostgreSQL
+- Maven
+- Docker Compose
+
+## Run with Docker Compose
+
+1. Copy `.env.example` to `.env`.
+2. Replace the database and pgAdmin passwords with local values. Keep `.env` out of Git.
+3. Keep `APP_BOOTSTRAP_ADMIN_ENABLED=false` unless you need to create the first administrator. To bootstrap one, set it to `true` and provide a strong name, email, and password in `.env`. The administrator is created only when the database has no `ADMIN` user.
+4. Start the services:
+
+```bash
+docker compose up --build
+```
+
+The API is available at `http://localhost:8080`. Swagger UI is available at `http://localhost:8080/swagger-ui/index.html`; the OpenAPI document is at `http://localhost:8080/v3/api-docs`.
+
+To stop the services while preserving PostgreSQL data:
+
+```bash
+docker compose down
+```
+
+To delete the database volume as well, use `docker compose down -v`. This permanently removes local database data.
+
+## Run the API locally
+
+Start PostgreSQL with Docker Compose, then run the Spring Boot application with Java 21 and Maven:
+
+```bash
+./mvnw spring-boot:run
+```
+
+On Windows PowerShell, use:
+
+```powershell
+.\mvnw.cmd spring-boot:run
+```
+
+The default local database URL is `jdbc:postgresql://localhost:5432/codereview`. Configure `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, and `JWT_SECRET` as environment variables when your local settings differ. `JWT_SECRET` must be Base64 and decode to at least 32 bytes. The sample value in `.env.example` is for local development only; replace it outside a disposable local environment.
+
+## Run tests
+
+Tests use PostgreSQL. Start the database first, then run:
+
+```bash
+./mvnw test
+```
+
+The GitHub Actions workflow also builds and tests the application against PostgreSQL and validates the Docker image.
+
+## Main API endpoints
+
+| Method | Endpoint | Access |
+| --- | --- | --- |
+| `POST` | `/api/auth/register` | Public; creates a `DEVELOPER` |
+| `POST` | `/api/auth/login` | Public; returns a Bearer JWT |
+| `POST` | `/api/reviews` | `DEVELOPER` |
+| `GET` | `/api/reviews?page=0&size=10&status=OPEN` | Authenticated, results scoped by role and ownership |
+| `GET` | `/api/reviews/{id}` | Authorized request participants |
+| `PATCH` | `/api/reviews/{id}` | Request owner while status is `OPEN` |
+| `PATCH` | `/api/reviews/{id}/cancel` | Request owner while cancellation is allowed |
+| `PATCH` | `/api/reviews/{id}/claim` | `REVIEWER` |
+| `POST` | `/api/reviews/{id}/comments` | Assigned reviewer |
+| `POST` | `/api/reviews/{id}/decision` | Assigned reviewer |
+| `GET` | `/api/reviews/{id}/history` | Authorized request participants |
+| `GET` | `/api/admin/users?page=0&size=10` | `ADMIN` |
+| `PATCH` | `/api/admin/users/{userId}/role` | `ADMIN`; promotes a developer to reviewer |
+
+For protected endpoints, log in and send the returned token as:
+
+```http
+Authorization: Bearer <token>
+```
+
+The registration endpoint always assigns `DEVELOPER`; it does not accept a role from the client. The bootstrap configuration is the supported way to create the first administrator in a fresh database. After startup, disable the bootstrap setting and remove the bootstrap password from the local environment file.
+
+## Review status flow
+
+- `OPEN` can move to `IN_REVIEW` or `CANCELLED`.
+- `IN_REVIEW` can move to `APPROVED`, `CHANGES_REQUESTED`, or `REJECTED`.
+- `CHANGES_REQUESTED` can move back to `IN_REVIEW` or to `CANCELLED`.
+- `APPROVED`, `REJECTED`, and `CANCELLED` are final in this version.
+
+Each status change is stored in the status history in the same database transaction as the request update. Only one reviewer can claim an open request; a competing claim receives a conflict response.
+
+## Configuration
+
+| Variable | Purpose |
+| --- | --- |
+| `POSTGRES_DB` | PostgreSQL database name |
+| `POSTGRES_USER` | PostgreSQL username |
+| `POSTGRES_PASSWORD` | PostgreSQL password |
+| `JWT_SECRET` | Base64 encoded HMAC key (at least 32 decoded bytes) |
+| `APP_BOOTSTRAP_ADMIN_ENABLED` | Enables first administrator creation when set to `true` |
+| `APP_BOOTSTRAP_ADMIN_NAME` | Initial administrator name |
+| `APP_BOOTSTRAP_ADMIN_EMAIL` | Initial administrator email |
+| `APP_BOOTSTRAP_ADMIN_PASSWORD` | Initial administrator password; encoded with BCrypt |
+
+Do not commit `.env` files, real credentials, or JWT secrets. The checked-in `.env.example` contains development-only placeholders.
