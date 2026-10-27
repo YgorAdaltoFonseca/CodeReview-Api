@@ -2,7 +2,10 @@ package chronos.codereviewapi.services;
 
 import chronos.codereviewapi.dtos.requests.ReviewRequestRequest;
 import chronos.codereviewapi.dtos.requests.UpdateReviewRequest;
+import chronos.codereviewapi.dtos.requests.CreateCommentRequest;
 import chronos.codereviewapi.dtos.responses.ReviewRequestResponse;
+import chronos.codereviewapi.dtos.responses.ReviewCommentResponse;
+import chronos.codereviewapi.entities.ReviewCommentEntity;
 import chronos.codereviewapi.entities.ReviewRequestEntity;
 import chronos.codereviewapi.entities.ReviewStatusHistoryEntity;
 import chronos.codereviewapi.entities.UserEntity;
@@ -11,6 +14,7 @@ import chronos.codereviewapi.enums.Role;
 import chronos.codereviewapi.exceptions.ReviewRequestConflictException;
 import chronos.codereviewapi.exceptions.ReviewRequestNotFoundException;
 import chronos.codereviewapi.repositories.ReviewRequestRepository;
+import chronos.codereviewapi.repositories.ReviewCommentRepository;
 import chronos.codereviewapi.repositories.ReviewStatusHistoryRepository;
 import chronos.codereviewapi.services.settingsServices.AuthenticatedUserService;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,6 +46,9 @@ class ReviewRequestServiceTest {
     private ReviewRequestRepository reviewRequestRepository;
 
     @Mock
+    private ReviewCommentRepository reviewCommentRepository;
+
+    @Mock
     private ReviewStatusHistoryRepository reviewStatusHistoryRepository;
 
     @Mock
@@ -53,6 +60,7 @@ class ReviewRequestServiceTest {
     void setUp() {
         reviewRequestService = new ReviewRequestService(
                 reviewRequestRepository,
+                reviewCommentRepository,
                 reviewStatusHistoryRepository,
                 authenticatedUserService
         );
@@ -368,6 +376,62 @@ class ReviewRequestServiceTest {
 
         verify(reviewRequestRepository, never()).save(reviewRequest);
         verifyNoInteractions(reviewStatusHistoryRepository);
+    }
+
+    @Test
+    void assignedReviewerCanAddCommentDuringReview() {
+        UserEntity reviewer = createUser(8L, Role.REVIEWER);
+        ReviewRequestEntity reviewRequest = createReviewRequest(
+                createUser(7L, Role.DEVELOPER),
+                reviewer,
+                ReviewStatus.IN_REVIEW
+        );
+        CreateCommentRequest request =
+                new CreateCommentRequest("Please add a test for expired tokens.");
+        when(authenticatedUserService.getAuthenticatedUser())
+                .thenReturn(reviewer);
+        when(reviewRequestRepository.findByIdForUpdate(42L))
+                .thenReturn(Optional.of(reviewRequest));
+        when(reviewCommentRepository.save(any(ReviewCommentEntity.class)))
+                .thenAnswer(invocation -> {
+                    ReviewCommentEntity comment = invocation.getArgument(0);
+                    comment.setId(101L);
+                    return comment;
+                });
+
+        ReviewCommentResponse response =
+                reviewRequestService.addComment(42L, request);
+
+        assertEquals(101L, response.id());
+        assertEquals(42L, response.reviewRequestId());
+        assertEquals(8L, response.authorId());
+        assertEquals(reviewer.getName(), response.authorName());
+        assertEquals(request.content(), response.content());
+    }
+
+    @Test
+    void otherReviewerCannotAddComment() {
+        UserEntity assignedReviewer = createUser(8L, Role.REVIEWER);
+        UserEntity otherReviewer = createUser(10L, Role.REVIEWER);
+        ReviewRequestEntity reviewRequest = createReviewRequest(
+                createUser(7L, Role.DEVELOPER),
+                assignedReviewer,
+                ReviewStatus.IN_REVIEW
+        );
+        when(authenticatedUserService.getAuthenticatedUser())
+                .thenReturn(otherReviewer);
+        when(reviewRequestRepository.findByIdForUpdate(42L))
+                .thenReturn(Optional.of(reviewRequest));
+
+        assertThrows(
+                AccessDeniedException.class,
+                () -> reviewRequestService.addComment(
+                        42L,
+                        new CreateCommentRequest("Unauthorized comment")
+                )
+        );
+
+        verifyNoInteractions(reviewCommentRepository);
     }
 
     private UserEntity createUser(Long id, Role role) {

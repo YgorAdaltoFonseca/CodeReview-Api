@@ -27,7 +27,7 @@ public class ReviewCommentEntity {
     @JoinColumn(name = "requester_id", nullable = false)
     private UserEntity requesterId;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "TEXT")
     @NotBlank
     private String content;
 

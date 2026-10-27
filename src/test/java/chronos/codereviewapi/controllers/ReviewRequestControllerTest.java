@@ -1,7 +1,9 @@
 package chronos.codereviewapi.controllers;
 
 import chronos.codereviewapi.dtos.requests.ReviewRequestRequest;
+import chronos.codereviewapi.dtos.requests.CreateCommentRequest;
 import chronos.codereviewapi.dtos.responses.ReviewRequestResponse;
+import chronos.codereviewapi.dtos.responses.ReviewCommentResponse;
 import chronos.codereviewapi.enums.ReviewStatus;
 import chronos.codereviewapi.services.ReviewRequestService;
 import org.junit.jupiter.api.Test;
@@ -98,5 +100,28 @@ class ReviewRequestControllerTest {
         assertEquals(200, result.getStatusCode().value());
         assertEquals(ReviewStatus.IN_REVIEW, result.getBody().status());
         verify(service).claimReviewRequest(42L);
+    }
+
+    @Test
+    void addCommentReturnsCreatedResponse() {
+        ReviewRequestService service = mock(ReviewRequestService.class);
+        ReviewRequestController controller =
+                new ReviewRequestController(service);
+        CreateCommentRequest request = new CreateCommentRequest("Review note");
+        ReviewCommentResponse response = new ReviewCommentResponse(
+                101L,
+                42L,
+                8L,
+                "Maria",
+                "Review note",
+                null
+        );
+        when(service.addComment(42L, request)).thenReturn(response);
+
+        var result = controller.addComment(42L, request);
+
+        assertEquals(201, result.getStatusCode().value());
+        assertEquals(response, result.getBody());
+        verify(service).addComment(42L, request);
     }
 }

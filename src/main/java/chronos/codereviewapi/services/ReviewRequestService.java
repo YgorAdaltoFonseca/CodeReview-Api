@@ -3,10 +3,13 @@ package chronos.codereviewapi.services;
 
 import chronos.codereviewapi.dtos.requests.ReviewRequestRequest;
 import chronos.codereviewapi.dtos.requests.UpdateReviewRequest;
+import chronos.codereviewapi.dtos.requests.CreateCommentRequest;
 import chronos.codereviewapi.dtos.responses.PageResponse;
 import chronos.codereviewapi.dtos.responses.ReviewRequestResponse;
+import chronos.codereviewapi.dtos.responses.ReviewCommentResponse;
 import chronos.codereviewapi.dtos.responses.UserSummaryResponse;
 import chronos.codereviewapi.entities.ReviewRequestEntity;
+import chronos.codereviewapi.entities.ReviewCommentEntity;
 import chronos.codereviewapi.entities.ReviewStatusHistoryEntity;
 import chronos.codereviewapi.entities.UserEntity;
 import chronos.codereviewapi.enums.ReviewStatus;
@@ -14,6 +17,7 @@ import chronos.codereviewapi.enums.Role;
 import chronos.codereviewapi.exceptions.ReviewRequestNotFoundException;
 import chronos.codereviewapi.exceptions.ReviewRequestConflictException;
 import chronos.codereviewapi.repositories.ReviewRequestRepository;
+import chronos.codereviewapi.repositories.ReviewCommentRepository;
 import chronos.codereviewapi.repositories.ReviewStatusHistoryRepository;
 import chronos.codereviewapi.services.settingsServices.AuthenticatedUserService;
 
@@ -35,6 +39,7 @@ import java.util.Set;
 public class ReviewRequestService {
 
     private final ReviewRequestRepository reviewRequestRepository;
+    private final ReviewCommentRepository reviewCommentRepository;
     private final ReviewStatusHistoryRepository reviewStatusHistoryRepository;
     private final AuthenticatedUserService authenticatedUserService;
 
@@ -273,6 +278,62 @@ public class ReviewRequestService {
         );
 
         return toResponse(savedRequest);
+    }
+
+    // ADD A COMMENT AS THE REVIEWER ASSIGNED TO AN IN-PROGRESS REQUEST
+    @Transactional
+    public ReviewCommentResponse addComment(
+            Long reviewRequestId,
+            CreateCommentRequest commentRequest
+    ) {
+        UserEntity reviewer =
+                authenticatedUserService.getAuthenticatedUser();
+
+        if (reviewer.getRole() != Role.REVIEWER) {
+            throw new AccessDeniedException(
+                    "Only reviewers can comment on review requests."
+            );
+        }
+
+        ReviewRequestEntity reviewRequest =
+                reviewRequestRepository.findByIdForUpdate(reviewRequestId)
+                        .orElseThrow(() ->
+                                new ReviewRequestNotFoundException(
+                                        reviewRequestId
+                                )
+                        );
+
+        if (reviewRequest.getReviewerId() == null
+                || !reviewRequest.getReviewerId().getId()
+                .equals(reviewer.getId())) {
+            throw new AccessDeniedException(
+                    "Only the assigned reviewer can comment."
+            );
+        }
+
+        if (reviewRequest.getStatus() != ReviewStatus.IN_REVIEW) {
+            throw new ReviewRequestConflictException(
+                    "Comments can only be added while a review is in progress."
+            );
+        }
+
+        ReviewCommentEntity comment = ReviewCommentEntity.builder()
+                .reviewRequestEntityId(reviewRequest)
+                .requesterId(reviewer)
+                .content(commentRequest.content())
+                .build();
+
+        ReviewCommentEntity savedComment =
+                reviewCommentRepository.save(comment);
+
+        return new ReviewCommentResponse(
+                savedComment.getId(),
+                reviewRequest.getId(),
+                reviewer.getId(),
+                reviewer.getName(),
+                savedComment.getContent(),
+                savedComment.getCreatedAt()
+        );
     }
 
     private ReviewRequestEntity getRequestForDeveloperUpdate(

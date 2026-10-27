@@ -3,8 +3,10 @@ package chronos.codereviewapi.controllers;
 
 import chronos.codereviewapi.dtos.requests.ReviewRequestRequest;
 import chronos.codereviewapi.dtos.requests.UpdateReviewRequest;
+import chronos.codereviewapi.dtos.requests.CreateCommentRequest;
 import chronos.codereviewapi.dtos.responses.PageResponse;
 import chronos.codereviewapi.dtos.responses.ReviewRequestResponse;
+import chronos.codereviewapi.dtos.responses.ReviewCommentResponse;
 import chronos.codereviewapi.enums.ReviewStatus;
 import chronos.codereviewapi.services.ReviewRequestService;
 
@@ -14,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import java.net.URI;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -94,5 +97,15 @@ public class ReviewRequestController {
         return ResponseEntity.ok(
                 reviewRequestService.claimReviewRequest(id)
         );
+    }
+
+    // ADD COMMENT TO A REVIEW IN PROGRESS
+    @PostMapping("/{id}/comments")
+    public ResponseEntity<ReviewCommentResponse> addComment(
+            @PathVariable Long id,
+            @Valid @RequestBody CreateCommentRequest request
+    ) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(reviewRequestService.addComment(id, request));
     }
 }
