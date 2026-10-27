@@ -2,6 +2,7 @@
 package chronos.codereviewapi.controllers;
 
 import chronos.codereviewapi.dtos.requests.ReviewRequestRequest;
+import chronos.codereviewapi.dtos.requests.UpdateReviewRequest;
 import chronos.codereviewapi.dtos.responses.PageResponse;
 import chronos.codereviewapi.dtos.responses.ReviewRequestResponse;
 import chronos.codereviewapi.enums.ReviewStatus;
@@ -61,6 +62,27 @@ public class ReviewRequestController {
     ) {
         return ResponseEntity.ok(
                 reviewRequestService.getReviewRequest(id)
+        );
+    }
+
+    // UPDATE A REQUEST OWNED BY THE CURRENT DEVELOPER
+    @PatchMapping("/{id}")
+    public ResponseEntity<ReviewRequestResponse> updateReviewRequest(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateReviewRequest request
+    ) {
+        return ResponseEntity.ok(
+                reviewRequestService.updateReviewRequest(id, request)
+        );
+    }
+
+    // CANCEL A REQUEST OWNED BY THE CURRENT DEVELOPER
+    @PatchMapping("/{id}/cancel")
+    public ResponseEntity<ReviewRequestResponse> cancelReviewRequest(
+            @PathVariable Long id
+    ) {
+        return ResponseEntity.ok(
+                reviewRequestService.cancelReviewRequest(id)
         );
     }
 }

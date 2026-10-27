@@ -2,6 +2,7 @@
 package chronos.codereviewapi.services;
 
 import chronos.codereviewapi.dtos.requests.ReviewRequestRequest;
+import chronos.codereviewapi.dtos.requests.UpdateReviewRequest;
 import chronos.codereviewapi.dtos.responses.PageResponse;
 import chronos.codereviewapi.dtos.responses.ReviewRequestResponse;
 import chronos.codereviewapi.dtos.responses.UserSummaryResponse;
@@ -11,6 +12,7 @@ import chronos.codereviewapi.entities.UserEntity;
 import chronos.codereviewapi.enums.ReviewStatus;
 import chronos.codereviewapi.enums.Role;
 import chronos.codereviewapi.exceptions.ReviewRequestNotFoundException;
+import chronos.codereviewapi.exceptions.ReviewRequestConflictException;
 import chronos.codereviewapi.repositories.ReviewRequestRepository;
 import chronos.codereviewapi.repositories.ReviewStatusHistoryRepository;
 import chronos.codereviewapi.services.settingsServices.AuthenticatedUserService;
@@ -162,6 +164,90 @@ public class ReviewRequestService {
         }
 
         return toResponse(reviewRequest);
+    }
+
+    // UPDATE FIELDS THAT ARE EDITABLE BEFORE REVIEW STARTS
+    @Transactional
+    public ReviewRequestResponse updateReviewRequest(
+            Long reviewRequestId,
+            UpdateReviewRequest updateRequest
+    ) {
+        UserEntity user =
+                authenticatedUserService.getAuthenticatedUser();
+        ReviewRequestEntity reviewRequest =
+                getRequestForDeveloperUpdate(reviewRequestId, user);
+
+        if (reviewRequest.getStatus() != ReviewStatus.OPEN) {
+            throw new ReviewRequestConflictException(
+                    "Only open review requests can be updated."
+            );
+        }
+
+        if (updateRequest.title() != null) {
+            reviewRequest.setTitle(updateRequest.title());
+        }
+        if (updateRequest.description() != null) {
+            reviewRequest.setDescription(updateRequest.description());
+        }
+
+        return toResponse(reviewRequestRepository.save(reviewRequest));
+    }
+
+    // CANCEL AN ELIGIBLE REQUEST AND RECORD ITS STATUS CHANGE
+    @Transactional
+    public ReviewRequestResponse cancelReviewRequest(Long reviewRequestId) {
+        UserEntity user =
+                authenticatedUserService.getAuthenticatedUser();
+        ReviewRequestEntity reviewRequest =
+                getRequestForDeveloperUpdate(reviewRequestId, user);
+
+        ReviewStatus oldStatus = reviewRequest.getStatus();
+        if (oldStatus != ReviewStatus.OPEN
+                && oldStatus != ReviewStatus.CHANGES_REQUESTED) {
+            throw new ReviewRequestConflictException(
+                    "Only open or changes-requested reviews can be cancelled."
+            );
+        }
+
+        reviewRequest.setStatus(ReviewStatus.CANCELLED);
+        ReviewRequestEntity savedRequest =
+                reviewRequestRepository.save(reviewRequest);
+
+        reviewStatusHistoryRepository.save(
+                ReviewStatusHistoryEntity.builder()
+                        .reviewRequest(savedRequest)
+                        .changedById(user)
+                        .oldStatus(oldStatus)
+                        .newStatus(ReviewStatus.CANCELLED)
+                        .build()
+        );
+
+        return toResponse(savedRequest);
+    }
+
+    private ReviewRequestEntity getRequestForDeveloperUpdate(
+            Long reviewRequestId,
+            UserEntity user
+    ) {
+        if (user.getRole() != Role.DEVELOPER) {
+            throw new AccessDeniedException(
+                    "Only developers can update or cancel review requests."
+            );
+        }
+
+        ReviewRequestEntity reviewRequest =
+                reviewRequestRepository.findByIdForUpdate(reviewRequestId)
+                        .orElseThrow(() ->
+                                new ReviewRequestNotFoundException(
+                                        reviewRequestId
+                                )
+                        );
+
+        if (!reviewRequest.getRequesterId().getId().equals(user.getId())) {
+            throw new ReviewRequestNotFoundException(reviewRequestId);
+        }
+
+        return reviewRequest;
     }
 
     private boolean canViewReviewRequest(

@@ -60,11 +60,11 @@ public class ReviewRequestEntity {
     private UserEntity reviewerId;
 
 
-    @UpdateTimestamp
-    @Column(nullable = false, updatable = false)
-    private Instant updatedAt;
-
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
+
+    @UpdateTimestamp
+    @Column(nullable = false)
+    private Instant updatedAt;
 }

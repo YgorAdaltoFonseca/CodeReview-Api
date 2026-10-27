@@ -1,13 +1,14 @@
 package chronos.codereviewapi.services;
 
 import chronos.codereviewapi.dtos.requests.ReviewRequestRequest;
+import chronos.codereviewapi.dtos.requests.UpdateReviewRequest;
 import chronos.codereviewapi.dtos.responses.ReviewRequestResponse;
-import chronos.codereviewapi.entities.ReviewRequestEntity;
 import chronos.codereviewapi.entities.ReviewRequestEntity;
 import chronos.codereviewapi.entities.ReviewStatusHistoryEntity;
 import chronos.codereviewapi.entities.UserEntity;
 import chronos.codereviewapi.enums.ReviewStatus;
 import chronos.codereviewapi.enums.Role;
+import chronos.codereviewapi.exceptions.ReviewRequestConflictException;
 import chronos.codereviewapi.exceptions.ReviewRequestNotFoundException;
 import chronos.codereviewapi.repositories.ReviewRequestRepository;
 import chronos.codereviewapi.repositories.ReviewStatusHistoryRepository;
@@ -24,13 +25,14 @@ import org.springframework.security.access.AccessDeniedException;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -190,6 +192,108 @@ class ReviewRequestServiceTest {
 
         assertEquals(42L, response.id());
         verify(reviewRequestRepository).findById(42L);
+    }
+
+    @Test
+    void developerCanUpdateOwnOpenRequest() {
+        UserEntity requester = createUser(7L, Role.DEVELOPER);
+        ReviewRequestEntity reviewRequest = createReviewRequest(
+                requester,
+                null,
+                ReviewStatus.OPEN
+        );
+        when(authenticatedUserService.getAuthenticatedUser())
+                .thenReturn(requester);
+        when(reviewRequestRepository.findByIdForUpdate(42L))
+                .thenReturn(Optional.of(reviewRequest));
+        when(reviewRequestRepository.save(reviewRequest))
+                .thenReturn(reviewRequest);
+
+        ReviewRequestResponse response =
+                reviewRequestService.updateReviewRequest(
+                        42L,
+                        new UpdateReviewRequest(null, "Updated description")
+                );
+
+        assertEquals("Review authentication", response.title());
+        assertEquals("Updated description", response.description());
+        verify(reviewRequestRepository).save(reviewRequest);
+    }
+
+    @Test
+    void developerCannotUpdateAnotherDevelopersRequest() {
+        UserEntity requester = createUser(7L, Role.DEVELOPER);
+        ReviewRequestEntity anotherDevelopersRequest = createReviewRequest(
+                createUser(9L, Role.DEVELOPER),
+                null,
+                ReviewStatus.OPEN
+        );
+        when(authenticatedUserService.getAuthenticatedUser())
+                .thenReturn(requester);
+        when(reviewRequestRepository.findByIdForUpdate(42L))
+                .thenReturn(Optional.of(anotherDevelopersRequest));
+
+        assertThrows(
+                ReviewRequestNotFoundException.class,
+                () -> reviewRequestService.updateReviewRequest(
+                        42L,
+                        new UpdateReviewRequest("Changed", null)
+                )
+        );
+
+        verify(reviewRequestRepository, never()).save(anotherDevelopersRequest);
+    }
+
+    @Test
+    void cancellationChangesStatusAndSavesHistory() {
+        UserEntity requester = createUser(7L, Role.DEVELOPER);
+        ReviewRequestEntity reviewRequest = createReviewRequest(
+                requester,
+                null,
+                ReviewStatus.OPEN
+        );
+        when(authenticatedUserService.getAuthenticatedUser())
+                .thenReturn(requester);
+        when(reviewRequestRepository.findByIdForUpdate(42L))
+                .thenReturn(Optional.of(reviewRequest));
+        when(reviewRequestRepository.save(reviewRequest))
+                .thenReturn(reviewRequest);
+
+        ReviewRequestResponse response =
+                reviewRequestService.cancelReviewRequest(42L);
+
+        ArgumentCaptor<ReviewStatusHistoryEntity> historyCaptor =
+                ArgumentCaptor.forClass(ReviewStatusHistoryEntity.class);
+        verify(reviewStatusHistoryRepository).save(historyCaptor.capture());
+        ReviewStatusHistoryEntity history = historyCaptor.getValue();
+
+        assertEquals(ReviewStatus.CANCELLED, response.status());
+        assertEquals(ReviewStatus.OPEN, history.getOldStatus());
+        assertEquals(ReviewStatus.CANCELLED, history.getNewStatus());
+        assertSame(requester, history.getChangedById());
+        assertEquals(42L, history.getReviewRequest().getId());
+    }
+
+    @Test
+    void requestInReviewCannotBeCancelled() {
+        UserEntity requester = createUser(7L, Role.DEVELOPER);
+        ReviewRequestEntity reviewRequest = createReviewRequest(
+                requester,
+                createUser(8L, Role.REVIEWER),
+                ReviewStatus.IN_REVIEW
+        );
+        when(authenticatedUserService.getAuthenticatedUser())
+                .thenReturn(requester);
+        when(reviewRequestRepository.findByIdForUpdate(42L))
+                .thenReturn(Optional.of(reviewRequest));
+
+        assertThrows(
+                ReviewRequestConflictException.class,
+                () -> reviewRequestService.cancelReviewRequest(42L)
+        );
+
+        verifyNoInteractions(reviewStatusHistoryRepository);
+        verify(reviewRequestRepository, never()).save(reviewRequest);
     }
 
     private UserEntity createUser(Long id, Role role) {

@@ -68,6 +68,22 @@ public class GlobalControllerAdvice {
                 .body(error);
     }
 
+    // REVIEW REQUEST STATE CONFLICT - 409
+    @ExceptionHandler(ReviewRequestConflictException.class)
+    public ResponseEntity<ErrorResponse> handleReviewRequestConflict(
+            ReviewRequestConflictException ex
+    ) {
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.CONFLICT.value(),
+                ex.getMessage(),
+                LocalDateTime.now()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(error);
+    }
+
     // EMAIL ALREADY EXISTS - 409
     @ExceptionHandler(EmailAlreadyExistsException.class)
     public ResponseEntity<ErrorResponse> handleEmailAlreadyExists(
