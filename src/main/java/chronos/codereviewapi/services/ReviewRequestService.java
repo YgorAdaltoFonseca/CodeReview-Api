@@ -10,6 +10,7 @@ import chronos.codereviewapi.entities.ReviewStatusHistoryEntity;
 import chronos.codereviewapi.entities.UserEntity;
 import chronos.codereviewapi.enums.ReviewStatus;
 import chronos.codereviewapi.enums.Role;
+import chronos.codereviewapi.exceptions.ReviewRequestNotFoundException;
 import chronos.codereviewapi.repositories.ReviewRequestRepository;
 import chronos.codereviewapi.repositories.ReviewStatusHistoryRepository;
 import chronos.codereviewapi.services.settingsServices.AuthenticatedUserService;
@@ -140,6 +141,51 @@ public class ReviewRequestService {
                 reviewRequests.getTotalElements(),
                 reviewRequests.getTotalPages()
         );
+    }
+
+    // GET A REQUEST VISIBLE TO THE CURRENT USER
+    @Transactional(readOnly = true)
+    public ReviewRequestResponse getReviewRequest(Long reviewRequestId) {
+        UserEntity user =
+                authenticatedUserService.getAuthenticatedUser();
+
+        ReviewRequestEntity reviewRequest =
+                reviewRequestRepository.findById(reviewRequestId)
+                        .orElseThrow(() ->
+                                new ReviewRequestNotFoundException(
+                                        reviewRequestId
+                                )
+                        );
+
+        if (!canViewReviewRequest(user, reviewRequest)) {
+            throw new ReviewRequestNotFoundException(reviewRequestId);
+        }
+
+        return toResponse(reviewRequest);
+    }
+
+    private boolean canViewReviewRequest(
+            UserEntity user,
+            ReviewRequestEntity reviewRequest
+    ) {
+        if (user.getRole() == Role.DEVELOPER) {
+            return reviewRequest.getRequesterId().getId()
+                    .equals(user.getId());
+        }
+
+        if (user.getRole() == Role.REVIEWER) {
+            boolean isAvailable =
+                    reviewRequest.getStatus() == ReviewStatus.OPEN
+                            && reviewRequest.getReviewerId() == null;
+            boolean isAssignedToUser =
+                    reviewRequest.getReviewerId() != null
+                            && reviewRequest.getReviewerId().getId()
+                            .equals(user.getId());
+
+            return isAvailable || isAssignedToUser;
+        }
+
+        return false;
     }
 
     // VALIDATE PAGINATION PARAMETERS

@@ -53,4 +53,14 @@ public class ReviewRequestController {
                 )
         );
     }
+
+    // GET A REVIEW REQUEST
+    @GetMapping("/{id}")
+    public ResponseEntity<ReviewRequestResponse> getReviewRequest(
+            @PathVariable Long id
+    ) {
+        return ResponseEntity.ok(
+                reviewRequestService.getReviewRequest(id)
+        );
+    }
 }

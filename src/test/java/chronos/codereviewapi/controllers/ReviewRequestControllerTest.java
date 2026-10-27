@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class ReviewRequestControllerTest {
@@ -45,5 +46,31 @@ class ReviewRequestControllerTest {
                 result.getHeaders().getLocation().toString()
         );
         assertEquals(42L, result.getBody().id());
+    }
+
+    @Test
+    void getReviewRequestReturnsRequestDetails() {
+        ReviewRequestService service = mock(ReviewRequestService.class);
+        ReviewRequestController controller =
+                new ReviewRequestController(service);
+        ReviewRequestResponse response = new ReviewRequestResponse(
+                42L,
+                "Review authentication",
+                "Check token handling",
+                "https://github.com/ygor/project",
+                "https://github.com/ygor/project/pull/12",
+                ReviewStatus.OPEN,
+                null,
+                null,
+                null,
+                null
+        );
+        when(service.getReviewRequest(42L)).thenReturn(response);
+
+        var result = controller.getReviewRequest(42L);
+
+        assertEquals(200, result.getStatusCode().value());
+        assertEquals(response, result.getBody());
+        verify(service).getReviewRequest(42L);
     }
 }

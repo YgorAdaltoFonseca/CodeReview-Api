@@ -52,6 +52,22 @@ public class GlobalControllerAdvice {
                 .body(error);
     }
 
+    // REVIEW REQUEST NOT FOUND OR NOT VISIBLE - 404
+    @ExceptionHandler(ReviewRequestNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleReviewRequestNotFound(
+            ReviewRequestNotFoundException ex
+    ) {
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.NOT_FOUND.value(),
+                ex.getMessage(),
+                LocalDateTime.now()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(error);
+    }
+
     // EMAIL ALREADY EXISTS - 409
     @ExceptionHandler(EmailAlreadyExistsException.class)
     public ResponseEntity<ErrorResponse> handleEmailAlreadyExists(

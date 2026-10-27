@@ -3,10 +3,12 @@ package chronos.codereviewapi.services;
 import chronos.codereviewapi.dtos.requests.ReviewRequestRequest;
 import chronos.codereviewapi.dtos.responses.ReviewRequestResponse;
 import chronos.codereviewapi.entities.ReviewRequestEntity;
+import chronos.codereviewapi.entities.ReviewRequestEntity;
 import chronos.codereviewapi.entities.ReviewStatusHistoryEntity;
 import chronos.codereviewapi.entities.UserEntity;
 import chronos.codereviewapi.enums.ReviewStatus;
 import chronos.codereviewapi.enums.Role;
+import chronos.codereviewapi.exceptions.ReviewRequestNotFoundException;
 import chronos.codereviewapi.repositories.ReviewRequestRepository;
 import chronos.codereviewapi.repositories.ReviewStatusHistoryRepository;
 import chronos.codereviewapi.services.settingsServices.AuthenticatedUserService;
@@ -15,9 +17,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
-import org.springframework.security.access.AccessDeniedException;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.access.AccessDeniedException;
+
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -25,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -125,5 +130,91 @@ class ReviewRequestServiceTest {
                 reviewRequestRepository,
                 reviewStatusHistoryRepository
         );
+    }
+
+    @Test
+    void developerCanViewOwnReviewRequest() {
+        UserEntity requester = createUser(7L, Role.DEVELOPER);
+        ReviewRequestEntity reviewRequest = createReviewRequest(
+                requester,
+                null,
+                ReviewStatus.OPEN
+        );
+        when(authenticatedUserService.getAuthenticatedUser())
+                .thenReturn(requester);
+        when(reviewRequestRepository.findById(42L))
+                .thenReturn(Optional.of(reviewRequest));
+
+        ReviewRequestResponse response =
+                reviewRequestService.getReviewRequest(42L);
+
+        assertEquals(42L, response.id());
+        assertEquals(ReviewStatus.OPEN, response.status());
+    }
+
+    @Test
+    void developerCannotViewAnotherDevelopersReviewRequest() {
+        UserEntity requester = createUser(7L, Role.DEVELOPER);
+        UserEntity anotherDeveloper = createUser(9L, Role.DEVELOPER);
+        ReviewRequestEntity reviewRequest = createReviewRequest(
+                anotherDeveloper,
+                null,
+                ReviewStatus.OPEN
+        );
+        when(authenticatedUserService.getAuthenticatedUser())
+                .thenReturn(requester);
+        when(reviewRequestRepository.findById(42L))
+                .thenReturn(Optional.of(reviewRequest));
+
+        assertThrows(
+                ReviewRequestNotFoundException.class,
+                () -> reviewRequestService.getReviewRequest(42L)
+        );
+    }
+
+    @Test
+    void reviewerCanViewOpenUnassignedRequest() {
+        UserEntity reviewer = createUser(8L, Role.REVIEWER);
+        ReviewRequestEntity reviewRequest = createReviewRequest(
+                createUser(7L, Role.DEVELOPER),
+                null,
+                ReviewStatus.OPEN
+        );
+        when(authenticatedUserService.getAuthenticatedUser())
+                .thenReturn(reviewer);
+        when(reviewRequestRepository.findById(42L))
+                .thenReturn(Optional.of(reviewRequest));
+
+        ReviewRequestResponse response =
+                reviewRequestService.getReviewRequest(42L);
+
+        assertEquals(42L, response.id());
+        verify(reviewRequestRepository).findById(42L);
+    }
+
+    private UserEntity createUser(Long id, Role role) {
+        return UserEntity.builder()
+                .id(id)
+                .name("User " + id)
+                .email("user" + id + "@example.com")
+                .role(role)
+                .build();
+    }
+
+    private ReviewRequestEntity createReviewRequest(
+            UserEntity requester,
+            UserEntity reviewer,
+            ReviewStatus status
+    ) {
+        return ReviewRequestEntity.builder()
+                .id(42L)
+                .title("Review authentication")
+                .description("Check token handling")
+                .repositoryURL("https://github.com/ygor/project")
+                .pullRequestURL("https://github.com/ygor/project/pull/12")
+                .requesterId(requester)
+                .reviewerId(reviewer)
+                .status(status)
+                .build();
     }
 }
