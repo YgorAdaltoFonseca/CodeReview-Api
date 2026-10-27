@@ -5,15 +5,14 @@ import chronos.codereviewapi.dtos.requests.auth.LoginRequest;
 import chronos.codereviewapi.dtos.requests.auth.RegisterRequest;
 import chronos.codereviewapi.dtos.responses.auth.LoginResponse;
 import chronos.codereviewapi.entities.UserEntity;
+import chronos.codereviewapi.exceptions.EmailAlreadyExistsException;
 import chronos.codereviewapi.repositories.UserRepository;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @RequiredArgsConstructor
@@ -27,10 +26,7 @@ public class AuthService {
     public UserEntity register(RegisterRequest request) {
 
         if (userRepository.existsByEmail(request.email())) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Email is already registered"
-            );
+            throw new EmailAlreadyExistsException("Email is already registered");
         }
 
         UserEntity user = new UserEntity(

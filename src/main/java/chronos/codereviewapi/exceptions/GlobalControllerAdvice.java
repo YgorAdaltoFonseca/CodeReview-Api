@@ -4,6 +4,7 @@ package chronos.codereviewapi.exceptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -19,6 +20,20 @@ public class GlobalControllerAdvice {
 
     private static final Logger log =
             LoggerFactory.getLogger(GlobalControllerAdvice.class);
+
+    // INVALID CREDENTIALS - 401
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ErrorResponse> handleAuthenticationFailure(
+            AuthenticationException ex
+    ) {
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.UNAUTHORIZED.value(),
+                "Invalid email or password.",
+                LocalDateTime.now()
+        );
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+    }
 
     // ACCESS DENIED - 403
     @ExceptionHandler(AccessDeniedException.class)
