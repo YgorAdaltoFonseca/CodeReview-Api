@@ -2,8 +2,10 @@ package chronos.codereviewapi.controllers;
 
 import chronos.codereviewapi.dtos.requests.ReviewRequestRequest;
 import chronos.codereviewapi.dtos.requests.CreateCommentRequest;
+import chronos.codereviewapi.dtos.requests.ReviewDecisionRequest;
 import chronos.codereviewapi.dtos.responses.ReviewRequestResponse;
 import chronos.codereviewapi.dtos.responses.ReviewCommentResponse;
+import chronos.codereviewapi.enums.ReviewDecision;
 import chronos.codereviewapi.enums.ReviewStatus;
 import chronos.codereviewapi.services.ReviewRequestService;
 import org.junit.jupiter.api.Test;
@@ -123,5 +125,35 @@ class ReviewRequestControllerTest {
         assertEquals(201, result.getStatusCode().value());
         assertEquals(response, result.getBody());
         verify(service).addComment(42L, request);
+    }
+
+    @Test
+    void decideReviewReturnsUpdatedRequest() {
+        ReviewRequestService service = mock(ReviewRequestService.class);
+        ReviewRequestController controller =
+                new ReviewRequestController(service);
+        ReviewDecisionRequest request = new ReviewDecisionRequest(
+                ReviewDecision.CHANGES_REQUESTED,
+                null
+        );
+        ReviewRequestResponse response = new ReviewRequestResponse(
+                42L,
+                "Review authentication",
+                "Check token handling",
+                "https://github.com/ygor/project",
+                "https://github.com/ygor/project/pull/12",
+                ReviewStatus.CHANGES_REQUESTED,
+                null,
+                null,
+                null,
+                null
+        );
+        when(service.decideReview(42L, request)).thenReturn(response);
+
+        var result = controller.decideReview(42L, request);
+
+        assertEquals(200, result.getStatusCode().value());
+        assertEquals(ReviewStatus.CHANGES_REQUESTED, result.getBody().status());
+        verify(service).decideReview(42L, request);
     }
 }

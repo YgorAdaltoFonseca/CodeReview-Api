@@ -4,6 +4,7 @@ package chronos.codereviewapi.controllers;
 import chronos.codereviewapi.dtos.requests.ReviewRequestRequest;
 import chronos.codereviewapi.dtos.requests.UpdateReviewRequest;
 import chronos.codereviewapi.dtos.requests.CreateCommentRequest;
+import chronos.codereviewapi.dtos.requests.ReviewDecisionRequest;
 import chronos.codereviewapi.dtos.responses.PageResponse;
 import chronos.codereviewapi.dtos.responses.ReviewRequestResponse;
 import chronos.codereviewapi.dtos.responses.ReviewCommentResponse;
@@ -107,5 +108,16 @@ public class ReviewRequestController {
     ) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(reviewRequestService.addComment(id, request));
+    }
+
+    // RECORD THE DECISION OF THE ASSIGNED REVIEWER
+    @PostMapping("/{id}/decision")
+    public ResponseEntity<ReviewRequestResponse> decideReview(
+            @PathVariable Long id,
+            @Valid @RequestBody ReviewDecisionRequest request
+    ) {
+        return ResponseEntity.ok(
+                reviewRequestService.decideReview(id, request)
+        );
     }
 }

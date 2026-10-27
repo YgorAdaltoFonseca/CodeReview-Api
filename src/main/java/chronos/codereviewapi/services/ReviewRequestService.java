@@ -4,6 +4,7 @@ package chronos.codereviewapi.services;
 import chronos.codereviewapi.dtos.requests.ReviewRequestRequest;
 import chronos.codereviewapi.dtos.requests.UpdateReviewRequest;
 import chronos.codereviewapi.dtos.requests.CreateCommentRequest;
+import chronos.codereviewapi.dtos.requests.ReviewDecisionRequest;
 import chronos.codereviewapi.dtos.responses.PageResponse;
 import chronos.codereviewapi.dtos.responses.ReviewRequestResponse;
 import chronos.codereviewapi.dtos.responses.ReviewCommentResponse;
@@ -13,6 +14,7 @@ import chronos.codereviewapi.entities.ReviewCommentEntity;
 import chronos.codereviewapi.entities.ReviewStatusHistoryEntity;
 import chronos.codereviewapi.entities.UserEntity;
 import chronos.codereviewapi.enums.ReviewStatus;
+import chronos.codereviewapi.enums.ReviewDecision;
 import chronos.codereviewapi.enums.Role;
 import chronos.codereviewapi.exceptions.ReviewRequestNotFoundException;
 import chronos.codereviewapi.exceptions.ReviewRequestConflictException;
@@ -334,6 +336,79 @@ public class ReviewRequestService {
                 savedComment.getContent(),
                 savedComment.getCreatedAt()
         );
+    }
+
+    // FINALIZE A REVIEW AND SAVE ITS STATUS HISTORY
+    @Transactional
+    public ReviewRequestResponse decideReview(
+            Long reviewRequestId,
+            ReviewDecisionRequest decisionRequest
+    ) {
+        UserEntity reviewer =
+                authenticatedUserService.getAuthenticatedUser();
+
+        if (reviewer.getRole() != Role.REVIEWER) {
+            throw new AccessDeniedException(
+                    "Only reviewers can decide review requests."
+            );
+        }
+
+        ReviewRequestEntity reviewRequest =
+                reviewRequestRepository.findByIdForUpdate(reviewRequestId)
+                        .orElseThrow(() ->
+                                new ReviewRequestNotFoundException(
+                                        reviewRequestId
+                                )
+                        );
+
+        if (reviewRequest.getReviewerId() == null
+                || !reviewRequest.getReviewerId().getId()
+                .equals(reviewer.getId())) {
+            throw new AccessDeniedException(
+                    "Only the assigned reviewer can decide this review."
+            );
+        }
+
+        if (reviewRequest.getStatus() != ReviewStatus.IN_REVIEW) {
+            throw new ReviewRequestConflictException(
+                    "Only reviews in progress can receive a decision."
+            );
+        }
+
+        ReviewStatus newStatus = toReviewStatus(decisionRequest.decision());
+        reviewRequest.setStatus(newStatus);
+        ReviewRequestEntity savedRequest =
+                reviewRequestRepository.save(reviewRequest);
+
+        reviewStatusHistoryRepository.save(
+                ReviewStatusHistoryEntity.builder()
+                        .reviewRequest(savedRequest)
+                        .changedById(reviewer)
+                        .oldStatus(ReviewStatus.IN_REVIEW)
+                        .newStatus(newStatus)
+                        .build()
+        );
+
+        if (decisionRequest.comment() != null
+                && !decisionRequest.comment().isBlank()) {
+            reviewCommentRepository.save(
+                    ReviewCommentEntity.builder()
+                            .reviewRequestEntityId(savedRequest)
+                            .requesterId(reviewer)
+                            .content(decisionRequest.comment())
+                            .build()
+            );
+        }
+
+        return toResponse(savedRequest);
+    }
+
+    private ReviewStatus toReviewStatus(ReviewDecision decision) {
+        return switch (decision) {
+            case APPROVED -> ReviewStatus.APPROVED;
+            case CHANGES_REQUESTED -> ReviewStatus.CHANGES_REQUESTED;
+            case REJECTED -> ReviewStatus.REJECTED;
+        };
     }
 
     private ReviewRequestEntity getRequestForDeveloperUpdate(

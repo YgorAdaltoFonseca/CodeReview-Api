@@ -3,6 +3,7 @@ package chronos.codereviewapi.services;
 import chronos.codereviewapi.dtos.requests.ReviewRequestRequest;
 import chronos.codereviewapi.dtos.requests.UpdateReviewRequest;
 import chronos.codereviewapi.dtos.requests.CreateCommentRequest;
+import chronos.codereviewapi.dtos.requests.ReviewDecisionRequest;
 import chronos.codereviewapi.dtos.responses.ReviewRequestResponse;
 import chronos.codereviewapi.dtos.responses.ReviewCommentResponse;
 import chronos.codereviewapi.entities.ReviewCommentEntity;
@@ -10,6 +11,7 @@ import chronos.codereviewapi.entities.ReviewRequestEntity;
 import chronos.codereviewapi.entities.ReviewStatusHistoryEntity;
 import chronos.codereviewapi.entities.UserEntity;
 import chronos.codereviewapi.enums.ReviewStatus;
+import chronos.codereviewapi.enums.ReviewDecision;
 import chronos.codereviewapi.enums.Role;
 import chronos.codereviewapi.exceptions.ReviewRequestConflictException;
 import chronos.codereviewapi.exceptions.ReviewRequestNotFoundException;
@@ -432,6 +434,68 @@ class ReviewRequestServiceTest {
         );
 
         verifyNoInteractions(reviewCommentRepository);
+    }
+
+    @Test
+    void assignedReviewerDecisionUpdatesStatusAndHistory() {
+        UserEntity reviewer = createUser(8L, Role.REVIEWER);
+        ReviewRequestEntity reviewRequest = createReviewRequest(
+                createUser(7L, Role.DEVELOPER),
+                reviewer,
+                ReviewStatus.IN_REVIEW
+        );
+        when(authenticatedUserService.getAuthenticatedUser())
+                .thenReturn(reviewer);
+        when(reviewRequestRepository.findByIdForUpdate(42L))
+                .thenReturn(Optional.of(reviewRequest));
+        when(reviewRequestRepository.save(reviewRequest))
+                .thenReturn(reviewRequest);
+
+        ReviewRequestResponse response = reviewRequestService.decideReview(
+                42L,
+                new ReviewDecisionRequest(
+                        ReviewDecision.APPROVED,
+                        "The changes look good."
+                )
+        );
+
+        ArgumentCaptor<ReviewStatusHistoryEntity> historyCaptor =
+                ArgumentCaptor.forClass(ReviewStatusHistoryEntity.class);
+        ArgumentCaptor<ReviewCommentEntity> commentCaptor =
+                ArgumentCaptor.forClass(ReviewCommentEntity.class);
+        verify(reviewStatusHistoryRepository).save(historyCaptor.capture());
+        verify(reviewCommentRepository).save(commentCaptor.capture());
+
+        assertEquals(ReviewStatus.APPROVED, response.status());
+        assertEquals(ReviewStatus.IN_REVIEW, historyCaptor.getValue().getOldStatus());
+        assertEquals(ReviewStatus.APPROVED, historyCaptor.getValue().getNewStatus());
+        assertEquals("The changes look good.", commentCaptor.getValue().getContent());
+        assertSame(reviewer, commentCaptor.getValue().getRequesterId());
+    }
+
+    @Test
+    void reviewDecisionIsRejectedWhenRequestIsNotInReview() {
+        UserEntity reviewer = createUser(8L, Role.REVIEWER);
+        ReviewRequestEntity reviewRequest = createReviewRequest(
+                createUser(7L, Role.DEVELOPER),
+                reviewer,
+                ReviewStatus.APPROVED
+        );
+        when(authenticatedUserService.getAuthenticatedUser())
+                .thenReturn(reviewer);
+        when(reviewRequestRepository.findByIdForUpdate(42L))
+                .thenReturn(Optional.of(reviewRequest));
+
+        assertThrows(
+                ReviewRequestConflictException.class,
+                () -> reviewRequestService.decideReview(
+                        42L,
+                        new ReviewDecisionRequest(ReviewDecision.REJECTED, null)
+                )
+        );
+
+        verify(reviewRequestRepository, never()).save(reviewRequest);
+        verifyNoInteractions(reviewStatusHistoryRepository, reviewCommentRepository);
     }
 
     private UserEntity createUser(Long id, Role role) {
