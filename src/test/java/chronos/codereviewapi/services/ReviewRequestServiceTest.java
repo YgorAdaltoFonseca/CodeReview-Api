@@ -6,6 +6,7 @@ import chronos.codereviewapi.dtos.requests.CreateCommentRequest;
 import chronos.codereviewapi.dtos.requests.ReviewDecisionRequest;
 import chronos.codereviewapi.dtos.responses.ReviewRequestResponse;
 import chronos.codereviewapi.dtos.responses.ReviewCommentResponse;
+import chronos.codereviewapi.dtos.responses.ReviewHistoryResponse;
 import chronos.codereviewapi.entities.ReviewCommentEntity;
 import chronos.codereviewapi.entities.ReviewRequestEntity;
 import chronos.codereviewapi.entities.ReviewStatusHistoryEntity;
@@ -29,6 +30,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
 
 import java.util.Optional;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -496,6 +498,98 @@ class ReviewRequestServiceTest {
 
         verify(reviewRequestRepository, never()).save(reviewRequest);
         verifyNoInteractions(reviewStatusHistoryRepository, reviewCommentRepository);
+    }
+
+    @Test
+    void developerCanReadCommentsOnOwnRequest() {
+        UserEntity requester = createUser(7L, Role.DEVELOPER);
+        UserEntity reviewer = createUser(8L, Role.REVIEWER);
+        ReviewRequestEntity reviewRequest = createReviewRequest(
+                requester,
+                reviewer,
+                ReviewStatus.CHANGES_REQUESTED
+        );
+        ReviewCommentEntity comment = ReviewCommentEntity.builder()
+                .id(101L)
+                .reviewRequestEntityId(reviewRequest)
+                .requesterId(reviewer)
+                .content("Please add an expiry test.")
+                .build();
+        when(authenticatedUserService.getAuthenticatedUser())
+                .thenReturn(requester);
+        when(reviewRequestRepository.findById(42L))
+                .thenReturn(Optional.of(reviewRequest));
+        when(reviewCommentRepository
+                .findByReviewRequestEntityId_IdOrderByCreatedAtAscIdAsc(42L))
+                .thenReturn(List.of(comment));
+
+        List<ReviewCommentResponse> comments =
+                reviewRequestService.getReviewComments(42L);
+
+        assertEquals(1, comments.size());
+        assertEquals(101L, comments.getFirst().id());
+        assertEquals(8L, comments.getFirst().authorId());
+        assertEquals("Please add an expiry test.", comments.getFirst().content());
+    }
+
+    @Test
+    void developerCanReadChronologicalStatusHistoryOnOwnRequest() {
+        UserEntity requester = createUser(7L, Role.DEVELOPER);
+        ReviewRequestEntity reviewRequest = createReviewRequest(
+                requester,
+                null,
+                ReviewStatus.OPEN
+        );
+        ReviewStatusHistoryEntity historyItem =
+                ReviewStatusHistoryEntity.builder()
+                        .id(5L)
+                        .reviewRequest(reviewRequest)
+                        .changedById(requester)
+                        .oldStatus(null)
+                        .newStatus(ReviewStatus.OPEN)
+                        .build();
+        when(authenticatedUserService.getAuthenticatedUser())
+                .thenReturn(requester);
+        when(reviewRequestRepository.findById(42L))
+                .thenReturn(Optional.of(reviewRequest));
+        when(reviewStatusHistoryRepository
+                .findByReviewRequest_IdOrderByCreatedAtAscIdAsc(42L))
+                .thenReturn(List.of(historyItem));
+
+        ReviewHistoryResponse response =
+                reviewRequestService.getReviewHistory(42L);
+
+        assertEquals(42L, response.reviewRequestId());
+        assertEquals(1, response.history().size());
+        assertNull(response.history().getFirst().oldStatus());
+        assertEquals(ReviewStatus.OPEN, response.history().getFirst().newStatus());
+        assertEquals(7L, response.history().getFirst().changedBy().id());
+    }
+
+    @Test
+    void anotherDeveloperCannotReadCommentsOrHistory() {
+        UserEntity requester = createUser(7L, Role.DEVELOPER);
+        UserEntity anotherDeveloper = createUser(9L, Role.DEVELOPER);
+        ReviewRequestEntity reviewRequest = createReviewRequest(
+                anotherDeveloper,
+                null,
+                ReviewStatus.OPEN
+        );
+        when(authenticatedUserService.getAuthenticatedUser())
+                .thenReturn(requester);
+        when(reviewRequestRepository.findById(42L))
+                .thenReturn(Optional.of(reviewRequest));
+
+        assertThrows(
+                ReviewRequestNotFoundException.class,
+                () -> reviewRequestService.getReviewComments(42L)
+        );
+        assertThrows(
+                ReviewRequestNotFoundException.class,
+                () -> reviewRequestService.getReviewHistory(42L)
+        );
+
+        verifyNoInteractions(reviewCommentRepository, reviewStatusHistoryRepository);
     }
 
     private UserEntity createUser(Long id, Role role) {

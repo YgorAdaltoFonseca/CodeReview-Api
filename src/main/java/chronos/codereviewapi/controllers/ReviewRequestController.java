@@ -8,6 +8,7 @@ import chronos.codereviewapi.dtos.requests.ReviewDecisionRequest;
 import chronos.codereviewapi.dtos.responses.PageResponse;
 import chronos.codereviewapi.dtos.responses.ReviewRequestResponse;
 import chronos.codereviewapi.dtos.responses.ReviewCommentResponse;
+import chronos.codereviewapi.dtos.responses.ReviewHistoryResponse;
 import chronos.codereviewapi.enums.ReviewStatus;
 import chronos.codereviewapi.services.ReviewRequestService;
 
@@ -15,6 +16,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 import java.net.URI;
+import java.util.List;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
@@ -118,6 +120,26 @@ public class ReviewRequestController {
     ) {
         return ResponseEntity.ok(
                 reviewRequestService.decideReview(id, request)
+        );
+    }
+
+    // LIST COMMENTS FOR A REQUEST VISIBLE TO THE CURRENT USER
+    @GetMapping("/{id}/comments")
+    public ResponseEntity<List<ReviewCommentResponse>> getReviewComments(
+            @PathVariable Long id
+    ) {
+        return ResponseEntity.ok(
+                reviewRequestService.getReviewComments(id)
+        );
+    }
+
+    // GET STATUS HISTORY FOR A REQUEST VISIBLE TO THE CURRENT USER
+    @GetMapping("/{id}/history")
+    public ResponseEntity<ReviewHistoryResponse> getReviewHistory(
+            @PathVariable Long id
+    ) {
+        return ResponseEntity.ok(
+                reviewRequestService.getReviewHistory(id)
         );
     }
 }

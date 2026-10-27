@@ -98,7 +98,10 @@ class ReviewRequestClaimConcurrencyTest {
                     .contains(claimedRequest.getReviewerId().getId()));
 
             List<ReviewStatusHistoryEntity> history =
-                    historyRepository.findByReviewRequest_Id(request.getId());
+                    historyRepository
+                            .findByReviewRequest_IdOrderByCreatedAtAscIdAsc(
+                                    request.getId()
+                            );
             assertEquals(1, history.size());
             assertEquals(ReviewStatus.OPEN, history.getFirst().getOldStatus());
             assertEquals(
@@ -110,7 +113,10 @@ class ReviewRequestClaimConcurrencyTest {
             executor.shutdownNow();
             executor.awaitTermination(5, TimeUnit.SECONDS);
             historyRepository.deleteAll(
-                    historyRepository.findByReviewRequest_Id(request.getId())
+                    historyRepository
+                            .findByReviewRequest_IdOrderByCreatedAtAscIdAsc(
+                                    request.getId()
+                            )
             );
             reviewRequestRepository.deleteById(request.getId());
             userRepository.deleteAllById(List.of(

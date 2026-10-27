@@ -8,6 +8,9 @@ import chronos.codereviewapi.dtos.requests.ReviewDecisionRequest;
 import chronos.codereviewapi.dtos.responses.PageResponse;
 import chronos.codereviewapi.dtos.responses.ReviewRequestResponse;
 import chronos.codereviewapi.dtos.responses.ReviewCommentResponse;
+import chronos.codereviewapi.dtos.responses.ReviewHistoryResponse;
+import chronos.codereviewapi.dtos.responses.ReviewStatusHistoryItemResponse;
+import chronos.codereviewapi.dtos.responses.UserReferenceResponse;
 import chronos.codereviewapi.dtos.responses.UserSummaryResponse;
 import chronos.codereviewapi.entities.ReviewRequestEntity;
 import chronos.codereviewapi.entities.ReviewCommentEntity;
@@ -159,6 +162,67 @@ public class ReviewRequestService {
                 authenticatedUserService.getAuthenticatedUser();
 
         ReviewRequestEntity reviewRequest =
+                getVisibleReviewRequest(reviewRequestId, user);
+        return toResponse(reviewRequest);
+    }
+
+    // LIST COMMENTS VISIBLE TO THE REQUESTER OR REVIEWER
+    @Transactional(readOnly = true)
+    public List<ReviewCommentResponse> getReviewComments(Long reviewRequestId) {
+        UserEntity user =
+                authenticatedUserService.getAuthenticatedUser();
+        ReviewRequestEntity reviewRequest =
+                getVisibleReviewRequest(reviewRequestId, user);
+
+        return reviewCommentRepository
+                .findByReviewRequestEntityId_IdOrderByCreatedAtAscIdAsc(
+                        reviewRequest.getId()
+                )
+                .stream()
+                .map(comment -> new ReviewCommentResponse(
+                        comment.getId(),
+                        reviewRequest.getId(),
+                        comment.getRequesterId().getId(),
+                        comment.getRequesterId().getName(),
+                        comment.getContent(),
+                        comment.getCreatedAt()
+                ))
+                .toList();
+    }
+
+    // RETURN AN IMMUTABLE, CHRONOLOGICAL STATUS HISTORY
+    @Transactional(readOnly = true)
+    public ReviewHistoryResponse getReviewHistory(Long reviewRequestId) {
+        UserEntity user =
+                authenticatedUserService.getAuthenticatedUser();
+        ReviewRequestEntity reviewRequest =
+                getVisibleReviewRequest(reviewRequestId, user);
+
+        List<ReviewStatusHistoryItemResponse> history =
+                reviewStatusHistoryRepository
+                        .findByReviewRequest_IdOrderByCreatedAtAscIdAsc(
+                                reviewRequest.getId()
+                        )
+                        .stream()
+                        .map(item -> new ReviewStatusHistoryItemResponse(
+                                item.getOldStatus(),
+                                item.getNewStatus(),
+                                new UserReferenceResponse(
+                                        item.getChangedById().getId(),
+                                        item.getChangedById().getName()
+                                ),
+                                item.getCreatedAt()
+                        ))
+                        .toList();
+
+        return new ReviewHistoryResponse(reviewRequest.getId(), history);
+    }
+
+    private ReviewRequestEntity getVisibleReviewRequest(
+            Long reviewRequestId,
+            UserEntity user
+    ) {
+        ReviewRequestEntity reviewRequest =
                 reviewRequestRepository.findById(reviewRequestId)
                         .orElseThrow(() ->
                                 new ReviewRequestNotFoundException(
@@ -170,7 +234,7 @@ public class ReviewRequestService {
             throw new ReviewRequestNotFoundException(reviewRequestId);
         }
 
-        return toResponse(reviewRequest);
+        return reviewRequest;
     }
 
     // UPDATE FIELDS THAT ARE EDITABLE BEFORE REVIEW STARTS

@@ -10,5 +10,7 @@ import java.util.List;
 public interface ReviewStatusHistoryRepository
         extends JpaRepository<ReviewStatusHistoryEntity, Long> {
 
-    List<ReviewStatusHistoryEntity> findByReviewRequest_Id(Long reviewRequestId);
+    List<ReviewStatusHistoryEntity> findByReviewRequest_IdOrderByCreatedAtAscIdAsc(
+            Long reviewRequestId
+    );
 }

@@ -5,6 +5,7 @@ import chronos.codereviewapi.dtos.requests.CreateCommentRequest;
 import chronos.codereviewapi.dtos.requests.ReviewDecisionRequest;
 import chronos.codereviewapi.dtos.responses.ReviewRequestResponse;
 import chronos.codereviewapi.dtos.responses.ReviewCommentResponse;
+import chronos.codereviewapi.dtos.responses.ReviewHistoryResponse;
 import chronos.codereviewapi.enums.ReviewDecision;
 import chronos.codereviewapi.enums.ReviewStatus;
 import chronos.codereviewapi.services.ReviewRequestService;
@@ -155,5 +156,37 @@ class ReviewRequestControllerTest {
         assertEquals(200, result.getStatusCode().value());
         assertEquals(ReviewStatus.CHANGES_REQUESTED, result.getBody().status());
         verify(service).decideReview(42L, request);
+    }
+
+    @Test
+    void getReviewCommentsReturnsComments() {
+        ReviewRequestService service = mock(ReviewRequestService.class);
+        ReviewRequestController controller =
+                new ReviewRequestController(service);
+        ReviewCommentResponse comment = new ReviewCommentResponse(
+                101L, 42L, 8L, "Maria", "Review note", null
+        );
+        when(service.getReviewComments(42L)).thenReturn(java.util.List.of(comment));
+
+        var result = controller.getReviewComments(42L);
+
+        assertEquals(200, result.getStatusCode().value());
+        assertEquals(java.util.List.of(comment), result.getBody());
+        verify(service).getReviewComments(42L);
+    }
+
+    @Test
+    void getReviewHistoryReturnsHistory() {
+        ReviewRequestService service = mock(ReviewRequestService.class);
+        ReviewRequestController controller =
+                new ReviewRequestController(service);
+        ReviewHistoryResponse response = new ReviewHistoryResponse(42L, java.util.List.of());
+        when(service.getReviewHistory(42L)).thenReturn(response);
+
+        var result = controller.getReviewHistory(42L);
+
+        assertEquals(200, result.getStatusCode().value());
+        assertEquals(response, result.getBody());
+        verify(service).getReviewHistory(42L);
     }
 }
