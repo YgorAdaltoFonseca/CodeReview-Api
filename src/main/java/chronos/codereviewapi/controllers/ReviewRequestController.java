@@ -10,6 +10,8 @@ import chronos.codereviewapi.services.ReviewRequestService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
+import java.net.URI;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,9 +27,12 @@ public class ReviewRequestController {
     public ResponseEntity<ReviewRequestResponse> createReviewRequest(
             @Valid @RequestBody ReviewRequestRequest request
     ) {
-        return ResponseEntity.ok(
-                reviewRequestService.createReviewRequest(request)
-        );
+        ReviewRequestResponse response =
+                reviewRequestService.createReviewRequest(request);
+
+        return ResponseEntity
+                .created(URI.create("/api/reviews/" + response.id()))
+                .body(response);
     }
 
     // LIST REVIEW REQUESTS

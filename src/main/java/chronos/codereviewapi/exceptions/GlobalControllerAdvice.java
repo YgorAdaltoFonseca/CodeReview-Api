@@ -3,6 +3,7 @@ package chronos.codereviewapi.exceptions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -18,6 +19,22 @@ public class GlobalControllerAdvice {
 
     private static final Logger log =
             LoggerFactory.getLogger(GlobalControllerAdvice.class);
+
+    // ACCESS DENIED - 403
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDenied(
+            AccessDeniedException ex
+    ) {
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.FORBIDDEN.value(),
+                "You do not have permission to perform this operation.",
+                LocalDateTime.now()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(error);
+    }
 
     // USER NOT FOUND - 404
     @ExceptionHandler(UserNotFoundException.class)

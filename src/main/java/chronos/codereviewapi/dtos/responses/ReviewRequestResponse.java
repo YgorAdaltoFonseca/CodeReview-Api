@@ -6,6 +6,7 @@ import java.time.Instant;
 
 public record ReviewRequestResponse(
 
+        Long id,
         String title ,
         String description ,
         String repositoryUrl ,

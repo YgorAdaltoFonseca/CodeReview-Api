@@ -6,10 +6,12 @@ import chronos.codereviewapi.dtos.responses.PageResponse;
 import chronos.codereviewapi.dtos.responses.ReviewRequestResponse;
 import chronos.codereviewapi.dtos.responses.UserSummaryResponse;
 import chronos.codereviewapi.entities.ReviewRequestEntity;
+import chronos.codereviewapi.entities.ReviewStatusHistoryEntity;
 import chronos.codereviewapi.entities.UserEntity;
 import chronos.codereviewapi.enums.ReviewStatus;
 import chronos.codereviewapi.enums.Role;
 import chronos.codereviewapi.repositories.ReviewRequestRepository;
+import chronos.codereviewapi.repositories.ReviewStatusHistoryRepository;
 import chronos.codereviewapi.services.settingsServices.AuthenticatedUserService;
 
 import lombok.RequiredArgsConstructor;
@@ -30,6 +32,7 @@ import java.util.Set;
 public class ReviewRequestService {
 
     private final ReviewRequestRepository reviewRequestRepository;
+    private final ReviewStatusHistoryRepository reviewStatusHistoryRepository;
     private final AuthenticatedUserService authenticatedUserService;
 
     private static final int MAX_PAGE_SIZE = 100;
@@ -50,6 +53,12 @@ public class ReviewRequestService {
         UserEntity user =
                 authenticatedUserService.getAuthenticatedUser();
 
+        if (user.getRole() != Role.DEVELOPER) {
+            throw new AccessDeniedException(
+                    "Only developers can create review requests."
+            );
+        }
+
         ReviewRequestEntity reviewRequestEntity =
                 ReviewRequestEntity.builder()
                         .title(reviewRequestRequest.title())
@@ -62,6 +71,16 @@ public class ReviewRequestService {
 
         ReviewRequestEntity savedReviewRequest =
                 reviewRequestRepository.save(reviewRequestEntity);
+
+        ReviewStatusHistoryEntity initialHistory =
+                ReviewStatusHistoryEntity.builder()
+                        .reviewRequest(savedReviewRequest)
+                        .changedById(user)
+                        .oldStatus(null)
+                        .newStatus(savedReviewRequest.getStatus())
+                        .build();
+
+        reviewStatusHistoryRepository.save(initialHistory);
 
         return toResponse(savedReviewRequest);
     }
@@ -186,6 +205,7 @@ public class ReviewRequestService {
             ReviewRequestEntity reviewRequest
     ) {
         return new ReviewRequestResponse(
+                reviewRequest.getId(),
                 reviewRequest.getTitle(),
                 reviewRequest.getDescription(),
                 reviewRequest.getRepositoryURL(),
