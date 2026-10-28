@@ -211,7 +211,18 @@ GitHub Actions runs backend tests against PostgreSQL, builds the frontend and bo
 
 `performance/reviews-load.js` exercises the paginated review list with 10 virtual users for 60 seconds. Its initial target is p95 below 500 ms and a failed-request rate below 1%.
 
-Run it only against a non-production environment with a dedicated test account and representative data. The script does not create or remove records. Record the API/database environment, account role, visible request count, and k6 results with each measurement. **The latency target has not yet been measured against a representative dataset.**
+Run it only against a non-production environment with a dedicated test account and representative data. The script does not create or remove records. Record the API/database environment, account role, visible request count, and k6 results with each measurement.
+
+#### Recorded benchmark (2026-10-28)
+
+- **Application commit:** `d00eb4f` (the merge commit for PR #2).
+- **Environment:** local Windows host with Docker Desktop; API built from the tested commit with Java 21 and PostgreSQL 17 in containers. The benchmark used a fresh, isolated database; container CPU and memory limits were not pinned.
+- **Dataset:** 1,000 synthetic `OPEN` review requests owned by one `DEVELOPER` test account. The query returned pages of 10 requests.
+- **Load:** 10 virtual users for 60 seconds; 113,045 HTTP requests; 0 failed requests; all 226,088 response checks passed.
+- **Latency:** p50 4.32 ms, p90 6.45 ms, p95 8.27 ms, maximum 128.78 ms.
+- **Result:** passed the initial targets of p95 below 500 ms and failed-request rate below 1% in this local test environment.
+
+This measurement uses synthetic data and a single developer workstation. It does not predict production latency or replace a benchmark on the intended deployment hardware and workload.
 
 With k6 installed, set `K6_BASE_URL`, `K6_EMAIL`, and `K6_PASSWORD` in the shell and run:
 
