@@ -1,163 +1,127 @@
 # CodeReview API
 
-A REST API for managing code review requests. Developers create and track requests, reviewers claim requests and record comments or decisions, and administrators manage user roles.
+[![CI](https://github.com/YgorAdaltoFonseca/CodeReview-Api/actions/workflows/ci.yml/badge.svg?branch=feature/ygor)](https://github.com/YgorAdaltoFonseca/CodeReview-Api/actions/workflows/ci.yml)
+![Java 21](https://img.shields.io/badge/Java-21-blue)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1.1-brightgreen)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-blue)
+
+A full-stack code review request manager. Developers submit changes for review, reviewers claim requests and provide feedback, and administrators manage account roles.
 
 ## Features
 
-- User registration and JWT authentication
-- Role based access for developers, reviewers, and administrators
-- Review request creation, listing, filtering, pagination, updates, and cancellation
-- Exclusive reviewer assignment with database locking
-- Reviewer comments, decisions, and immutable status history
-- Paginated administrative user listing and reviewer promotion
-- OpenAPI documentation with Swagger UI
-- React and TypeScript web interface for developers, reviewers, and administrators
+- Registration and JWT-based authentication with BCrypt password hashing.
+- Role-based access for `DEVELOPER`, `REVIEWER`, and `ADMIN` users.
+- Review request creation, filtering, pagination, updates, cancellation, and resubmission.
+- Exclusive reviewer assignment with database locking to prevent competing claims.
+- Reviewer comments, decisions, and transactional status history.
+- User and resource ownership checks enforced by the API.
+- React and TypeScript web interface for developers, reviewers, and administrators.
+- OpenAPI documentation and Swagger UI.
+- Docker Compose setup for the API, web client, PostgreSQL, and pgAdmin.
 
 ## Technology
 
-- Java 21 and Spring Boot
-- Spring Security and JWT
-- Spring Data JPA and PostgreSQL
-- Maven
-- Docker Compose
-- React, TypeScript, Vite, and React Router
+| Area | Technology |
+| --- | --- |
+| Backend | Java 21, Spring Boot, Spring Security, Spring Data JPA |
+| Authentication | JWT Bearer tokens, BCrypt |
+| Database | PostgreSQL 17 |
+| Frontend | React, TypeScript, Vite, React Router |
+| Build and delivery | Maven, pnpm, Docker Compose, GitHub Actions |
+
+## Architecture
+
+The backend uses a layered structure: controllers handle HTTP, services enforce business rules, repositories access the database, and DTOs define the API contract.
+
+```mermaid
+flowchart LR
+    Browser[React web client] -->|JSON + Bearer token| API[Spring Boot REST API]
+    API --> Security[Spring Security and JWT]
+    Security --> Controller[Controllers]
+    Controller --> Service[Services and business rules]
+    Service --> Repository[Spring Data JPA repositories]
+    Repository --> DB[(PostgreSQL)]
+```
+
+Each request has one assigned reviewer at most. A developer cannot review their own request. Status changes and their history entries are saved in the same transaction.
+
+```text
+OPEN -> IN_REVIEW -> APPROVED
+                   -> CHANGES_REQUESTED -> IN_REVIEW
+                   -> REJECTED
+OPEN or CHANGES_REQUESTED -> CANCELLED
+```
+
+`APPROVED`, `REJECTED`, and `CANCELLED` are final states.
 
 ## Run with Docker Compose
 
-1. Copy `.env.example` to `.env`.
-2. Replace the database and pgAdmin passwords with local values. Keep `.env` out of Git.
-3. Keep `APP_BOOTSTRAP_ADMIN_ENABLED=false` unless you need to create the first administrator. To bootstrap one, set it to `true` and provide a strong name, email, and password in `.env`. The administrator is created only when the database has no `ADMIN` user.
-4. Start the services:
+Requirements: Docker Desktop or Docker Engine with the Compose plugin.
 
-```bash
-docker compose up --build
-```
+1. Create a local environment file:
 
-The web interface is available at `http://localhost:3000`. The API is available at `http://localhost:8080`. Swagger UI is available at `http://localhost:8080/swagger-ui/index.html`; the OpenAPI document is at `http://localhost:8080/v3/api-docs`.
+   ```bash
+   cp .env.example .env
+   ```
 
-To stop the services while preserving PostgreSQL data:
+   In PowerShell, use `Copy-Item .env.example .env`.
 
-```bash
-docker compose down
-```
+2. Replace the database and pgAdmin password placeholders in `.env`. The checked-in JWT key is only for disposable local development; use a separate Base64 secret that decodes to at least 32 bytes for other environments. Never commit `.env`.
 
-To delete the database volume as well, use `docker compose down -v`. This permanently removes local database data.
+3. Start the application:
 
-## Run the API locally
+   ```bash
+   docker compose up --build
+   ```
 
-Start PostgreSQL with Docker Compose, then run the Spring Boot application with Java 21 and Maven:
+The services are available at:
 
-```bash
-./mvnw spring-boot:run
-```
+| Service | URL |
+| --- | --- |
+| Web client | [http://localhost:3000](http://localhost:3000) |
+| REST API | [http://localhost:8080](http://localhost:8080) |
+| Swagger UI | [http://localhost:8080/swagger-ui/index.html](http://localhost:8080/swagger-ui/index.html) |
+| OpenAPI JSON | [http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs) |
+| pgAdmin | [http://localhost:5050](http://localhost:5050) |
 
-On Windows PowerShell, use:
+### Create the first administrator
 
-```powershell
-.\mvnw.cmd spring-boot:run
-```
+Public registration always creates a `DEVELOPER`. To create the first administrator in a fresh database, set `APP_BOOTSTRAP_ADMIN_ENABLED=true` and provide the administrator name, email, and password in `.env` before starting Compose. The bootstrap only creates an administrator when none exists. After startup, turn the setting off and remove the bootstrap password from `.env`.
 
-The application requires `DB_PASSWORD` and `JWT_SECRET`; it has no built-in credential defaults. `JWT_SECRET` must be Base64 and decode to at least 32 bytes. The sample key in `.env.example` is for disposable local development only; use a separately generated key outside that environment.
+Stop the services while preserving database data with `docker compose down`. `docker compose down -v` also deletes the PostgreSQL volume and all local database data.
 
-For PowerShell, load your local `.env` values and map the PostgreSQL variables before running the API or its tests:
+## API overview
 
-```powershell
-Get-Content .env | Where-Object { $_ -match '^\s*[^#].*=' } | ForEach-Object {
-    $name, $value = $_ -split '=', 2
-    [Environment]::SetEnvironmentVariable($name.Trim(), $value.Trim(), 'Process')
-}
-$env:DB_URL = "jdbc:postgresql://localhost:5432/$env:POSTGRES_DB"
-$env:DB_USERNAME = $env:POSTGRES_USER
-$env:DB_PASSWORD = $env:POSTGRES_PASSWORD
-```
-
-For Bash, export the `.env` values and map the database variables in the current shell:
-
-```bash
-set -a
-source .env
-set +a
-export DB_URL="jdbc:postgresql://localhost:5432/$POSTGRES_DB"
-export DB_USERNAME="$POSTGRES_USER"
-export DB_PASSWORD="$POSTGRES_PASSWORD"
-```
-
-The default local database URL is `jdbc:postgresql://localhost:5432/codereview`; override `DB_URL` if your PostgreSQL instance uses a different host or port. Docker Compose passes the database and JWT settings directly to the API container.
-
-## Run the frontend locally
-
-Install Node.js 22.12 or newer and pnpm 11. Then start the API and PostgreSQL as described above. In another terminal:
-
-```bash
-cd frontend
-pnpm install --frozen-lockfile
-pnpm dev
-```
-
-Vite serves the interface at `http://localhost:5173` and proxies `/api` calls to `http://localhost:8080`. In Compose, Nginx serves the built frontend on port `3000` and forwards API requests to the backend container.
-
-The JWT stays in browser memory and is cleared when the page is reloaded or the user signs out. This avoids persistent browser storage and cookie-based CSRF exposure; a page refresh requires the user to log in again. The UI uses the role claim only to show relevant navigation. The backend still checks roles and resource ownership on every protected operation.
-
-## Run tests
-
-Tests use PostgreSQL. Start the database first, then run:
-
-```bash
-./mvnw test
-```
-
-The GitHub Actions workflow builds and tests the application against PostgreSQL, builds the frontend, and validates both Docker images.
-
-## Measure paginated review-list performance
-
-The initial performance target is a p95 response time below 500 ms for `GET /api/reviews?page=0&size=10&sort=createdAt,desc` with 10 concurrent virtual users over 60 seconds. The scenario is in `performance/reviews-load.js` and uses the real API and database; it does not create or delete test data.
-
-Run the API and PostgreSQL first. Use a dedicated test account with a representative number of review requests and do not run this scenario against production. The list is scoped to the account's role and ownership, so record the test account role and its visible request count with the result. The 500 ms target is not considered verified until the scenario passes against the intended dataset on a recorded environment. The script configuration was validated with k6 v2.3.0; the actual latency target still needs a run against a representative dataset.
-
-With k6 installed, set the credentials in the current shell and run:
-
-```bash
-export K6_BASE_URL=http://localhost:8080
-export K6_EMAIL=load-test@example.com
-export K6_PASSWORD='use-a-test-account-password'
-k6 run performance/reviews-load.js
-```
-
-The same script can run in Docker without installing k6 locally. The image digest pins k6 v2.3.0 so results can be reproduced with the same runner. From PowerShell, set `K6_EMAIL` and `K6_PASSWORD` in the current session, then stream the script to k6:
-
-```powershell
-$env:K6_BASE_URL = 'http://host.docker.internal:8080'
-Get-Content -Raw .\performance\reviews-load.js | docker run --rm -i --env K6_BASE_URL --env K6_EMAIL --env K6_PASSWORD grafana/k6@sha256:3e4186aea62e11a45560bfc51e19eeafe82fc07ce069c78aff44b7ff893d9a5e run -
-```
-
-The report includes p95 latency and failed-request rate. A non-zero exit code means a threshold or check failed. Run the official k6 container as described in the [Grafana k6 Docker instructions](https://grafana.com/docs/k6/latest/get-started/running-k6/).
-
-## Main API endpoints
-
-| Method | Endpoint | Access |
-| --- | --- | --- |
-| `POST` | `/api/auth/register` | Public; creates a `DEVELOPER` |
-| `POST` | `/api/auth/login` | Public; returns a Bearer JWT |
-| `POST` | `/api/reviews` | `DEVELOPER` |
-| `GET` | `/api/reviews?page=0&size=10&status=OPEN` | Authenticated, results scoped by role and ownership |
-| `GET` | `/api/reviews/{id}` | Authorized request participants |
-| `PATCH` | `/api/reviews/{id}` | Request owner while status is `OPEN` |
-| `PATCH` | `/api/reviews/{id}/cancel` | Request owner while cancellation is allowed |
-| `PATCH` | `/api/reviews/{id}/resubmit` | Request owner after addressing requested changes |
-| `PATCH` | `/api/reviews/{id}/claim` | `REVIEWER` |
-| `POST` | `/api/reviews/{id}/comments` | Assigned reviewer |
-| `POST` | `/api/reviews/{id}/decision` | Assigned reviewer |
-| `GET` | `/api/reviews/{id}/history` | Authorized request participants |
-| `GET` | `/api/admin/users?page=0&size=10` | `ADMIN` |
-| `PATCH` | `/api/admin/users/{userId}/role` | `ADMIN`; promotes a developer to reviewer |
-
-For protected endpoints, log in and send the returned token as:
+Protected endpoints require:
 
 ```http
 Authorization: Bearer <token>
 ```
 
-Example registration, login, and review request creation:
+| Method | Endpoint | Access |
+| --- | --- | --- |
+| `POST` | `/api/auth/register` | Public; creates a developer account |
+| `POST` | `/api/auth/login` | Public; returns a JWT |
+| `POST` | `/api/reviews` | Developer |
+| `GET` | `/api/reviews` | Authenticated; scoped by role and ownership, paginated and filterable |
+| `GET` | `/api/reviews/{id}` | Authorized request participants |
+| `PATCH` | `/api/reviews/{id}` | Request owner while status is `OPEN` |
+| `PATCH` | `/api/reviews/{id}/cancel` | Request owner while cancellation is allowed |
+| `PATCH` | `/api/reviews/{id}/resubmit` | Request owner after requested changes |
+| `PATCH` | `/api/reviews/{id}/claim` | Reviewer; claims an available request |
+| `POST` | `/api/reviews/{id}/comments` | Assigned reviewer |
+| `POST` | `/api/reviews/{id}/decision` | Assigned reviewer |
+| `GET` | `/api/reviews/{id}/history` | Authorized request participants |
+| `GET` | `/api/admin/users` | Admin; paginated user list |
+| `PATCH` | `/api/admin/users/{userId}/role` | Admin |
+
+Review lists accept `page`, `size`, `status`, and `sort`, for example:
+
+```http
+GET /api/reviews?page=0&size=10&status=OPEN&sort=createdAt,desc
+```
+
+### Example: register, log in, and create a request
 
 ```bash
 curl -X POST http://localhost:8080/api/auth/register \
@@ -174,28 +138,109 @@ curl -X POST http://localhost:8080/api/reviews \
   -d '{"title":"Review login flow","description":"Please review token validation.","repositoryUrl":"https://github.com/example/app","pullRequestUrl":"https://github.com/example/app/pull/12"}'
 ```
 
-The registration endpoint always assigns `DEVELOPER`; it does not accept a role from the client. The bootstrap configuration is the supported way to create the first administrator in a fresh database. After startup, disable the bootstrap setting and remove the bootstrap password from the local environment file.
+The request author, initial `OPEN` status, and timestamps are set by the API. Repository and pull request links are stored as HTTPS URLs; the application does not connect to GitHub.
 
-## Review status flow
+## Authentication and browser storage
 
-- `OPEN` can move to `IN_REVIEW` or `CANCELLED`.
-- `IN_REVIEW` can move to `APPROVED`, `CHANGES_REQUESTED`, or `REJECTED`.
-- `CHANGES_REQUESTED` can move back to `IN_REVIEW` or to `CANCELLED`.
-- `APPROVED`, `REJECTED`, and `CANCELLED` are final in this version.
+The web client keeps the JWT in memory and clears it on reload or sign-out, so a page reload requires a new login. It does not persist the token in `localStorage`. The frontend uses token claims to display relevant navigation; the backend remains responsible for enforcing every role and ownership rule.
 
-Each status change is stored in the status history in the same database transaction as the request update. Only one reviewer can claim an open request; a competing claim receives a conflict response.
+## Run locally without Docker for the application
 
-## Configuration
+Start only PostgreSQL with Compose, then run the backend using Java 21 and Maven:
+
+```bash
+docker compose up -d postgres
+./mvnw spring-boot:run
+```
+
+On Windows, use `.\mvnw.cmd spring-boot:run` in PowerShell. The application requires `DB_PASSWORD` and `JWT_SECRET`; `.env` is not loaded automatically by Maven. In PowerShell, load its values and map the database settings before running:
+
+```powershell
+Get-Content .env | Where-Object { $_ -match '^\s*[^#].*=' } | ForEach-Object {
+    $name, $value = $_ -split '=', 2
+    [Environment]::SetEnvironmentVariable($name.Trim(), $value.Trim(), 'Process')
+}
+$env:DB_URL = "jdbc:postgresql://localhost:5432/$env:POSTGRES_DB"
+$env:DB_USERNAME = $env:POSTGRES_USER
+$env:DB_PASSWORD = $env:POSTGRES_PASSWORD
+```
+
+In Bash, load and map the same settings with:
+
+```bash
+set -a
+source .env
+set +a
+export DB_URL="jdbc:postgresql://localhost:5432/$POSTGRES_DB"
+export DB_USERNAME="$POSTGRES_USER"
+export DB_PASSWORD="$POSTGRES_PASSWORD"
+```
+
+`DB_URL` defaults to `jdbc:postgresql://localhost:5432/codereview`.
+
+To run the web client separately, install Node.js 22.12 or newer and pnpm 11, then:
+
+```bash
+cd frontend
+pnpm install --frozen-lockfile
+pnpm dev
+```
+
+Vite serves the client at [http://localhost:5173](http://localhost:5173) and proxies API calls to port `8080`.
+
+## Tests and CI
+
+The backend tests use PostgreSQL. Start the database, configure the database environment variables, and run:
+
+```bash
+./mvnw clean verify
+```
+
+Build and lint the frontend with:
+
+```bash
+cd frontend
+pnpm install --frozen-lockfile
+pnpm build
+pnpm lint
+```
+
+GitHub Actions runs backend tests against PostgreSQL, builds the frontend and both Docker images, and validates the k6 load-test script.
+
+## Performance scenario
+
+`performance/reviews-load.js` exercises the paginated review list with 10 virtual users for 60 seconds. Its initial target is p95 below 500 ms and a failed-request rate below 1%.
+
+Run it only against a non-production environment with a dedicated test account and representative data. The script does not create or remove records. Record the API/database environment, account role, visible request count, and k6 results with each measurement. **The latency target has not yet been measured against a representative dataset.**
+
+With k6 installed, set `K6_BASE_URL`, `K6_EMAIL`, and `K6_PASSWORD` in the shell and run:
+
+```bash
+k6 run performance/reviews-load.js
+```
+
+The same test can run in Docker without installing k6 locally. Set `K6_EMAIL` and `K6_PASSWORD` in the PowerShell session, then run:
+
+```powershell
+$env:K6_BASE_URL = 'http://host.docker.internal:8080'
+Get-Content -Raw .\performance\reviews-load.js | docker run --rm -i --env K6_BASE_URL --env K6_EMAIL --env K6_PASSWORD grafana/k6@sha256:3e4186aea62e11a45560bfc51e19eeafe82fc07ce069c78aff44b7ff893d9a5e run -
+```
+
+See the [official k6 Docker instructions](https://grafana.com/docs/k6/latest/get-started/running-k6/).
+
+## Environment variables
 
 | Variable | Purpose |
 | --- | --- |
-| `POSTGRES_DB` | PostgreSQL database name |
-| `POSTGRES_USER` | PostgreSQL username |
-| `POSTGRES_PASSWORD` | PostgreSQL password |
-| `JWT_SECRET` | Base64 encoded HMAC key (at least 32 decoded bytes) |
-| `APP_BOOTSTRAP_ADMIN_ENABLED` | Enables first administrator creation when set to `true` |
+| `POSTGRES_DB` | Database name |
+| `POSTGRES_USER` | Database username |
+| `POSTGRES_PASSWORD` | Database password |
+| `DB_URL` | JDBC URL when running the API outside Compose |
+| `DB_USERNAME` / `DB_PASSWORD` | API database credentials |
+| `JWT_SECRET` | Base64 HMAC key; at least 32 decoded bytes |
+| `APP_BOOTSTRAP_ADMIN_ENABLED` | Create the first administrator when enabled |
 | `APP_BOOTSTRAP_ADMIN_NAME` | Initial administrator name |
 | `APP_BOOTSTRAP_ADMIN_EMAIL` | Initial administrator email |
-| `APP_BOOTSTRAP_ADMIN_PASSWORD` | Initial administrator password; encoded with BCrypt |
+| `APP_BOOTSTRAP_ADMIN_PASSWORD` | Initial administrator password; stored with BCrypt |
 
-Do not commit `.env` files, real credentials, or JWT secrets. The checked-in `.env.example` contains development-only placeholders.
+The `.env.example` values are for local development only. Do not use them in a public deployment.
