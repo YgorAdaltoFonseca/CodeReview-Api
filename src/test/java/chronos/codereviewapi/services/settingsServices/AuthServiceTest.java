@@ -1,6 +1,9 @@
 package chronos.codereviewapi.services.settingsServices;
 
+import chronos.codereviewapi.dtos.requests.auth.LoginRequest;
 import chronos.codereviewapi.dtos.requests.auth.RegisterRequest;
+import chronos.codereviewapi.entities.UserEntity;
+import chronos.codereviewapi.enums.Role;
 import chronos.codereviewapi.exceptions.EmailAlreadyExistsException;
 import chronos.codereviewapi.repositories.UserRepository;
 import org.junit.jupiter.api.Test;
@@ -9,9 +12,13 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -47,6 +54,29 @@ class AuthServiceTest {
         );
 
         verify(passwordEncoder, never()).encode(request.password());
-        verify(userRepository, never()).save(org.mockito.ArgumentMatchers.any());
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void loginReturnsTokenAndItsActualExpirationTime() {
+        LoginRequest request = new LoginRequest(
+                "ygor@example.com", "safe-password"
+        );
+        UserEntity user = UserEntity.builder()
+                .id(7L)
+                .name("Ygor")
+                .email(request.email())
+                .role(Role.DEVELOPER)
+                .build();
+        Authentication authentication = mock(Authentication.class);
+        when(authenticationManager.authenticate(any())).thenReturn(authentication);
+        when(authentication.getPrincipal()).thenReturn(user);
+        when(jwtService.generateToken(user)).thenReturn("signed-jwt");
+
+        var response = authService.login(request);
+
+        assertEquals("signed-jwt", response.token());
+        assertEquals("Bearer", response.tokenType());
+        assertEquals(900, response.expiresIn());
     }
 }

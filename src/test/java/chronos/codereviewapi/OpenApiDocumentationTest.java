@@ -29,6 +29,16 @@ class OpenApiDocumentationTest {
                         .doesNotExist())
                 .andExpect(jsonPath("$.paths['/api/reviews'].get.security[0].bearerAuth")
                         .exists())
-                .andExpect(jsonPath("$.security").doesNotExist());
+                .andExpect(jsonPath("$.security").doesNotExist())
+                .andExpect(jsonPath("$.components.schemas.RegisterResponse.properties.id")
+                        .exists())
+                .andExpect(jsonPath("$.components.schemas.LoginResponse.properties.token")
+                        .exists())
+                .andExpect(jsonPath("$.components.schemas.LoginResponse.properties.expiresIn")
+                        .exists())
+                .andExpect(jsonPath("$.components.schemas.ReviewRequestResponse.properties.requester")
+                        .exists())
+                .andExpect(jsonPath("$.components.schemas.ReviewRequestResponse.properties.requesterId")
+                        .doesNotExist());
     }
 }

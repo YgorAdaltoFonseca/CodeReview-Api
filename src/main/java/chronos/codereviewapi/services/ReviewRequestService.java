@@ -11,7 +11,6 @@ import chronos.codereviewapi.dtos.responses.ReviewCommentResponse;
 import chronos.codereviewapi.dtos.responses.ReviewHistoryResponse;
 import chronos.codereviewapi.dtos.responses.ReviewStatusHistoryItemResponse;
 import chronos.codereviewapi.dtos.responses.UserReferenceResponse;
-import chronos.codereviewapi.dtos.responses.UserSummaryResponse;
 import chronos.codereviewapi.entities.ReviewRequestEntity;
 import chronos.codereviewapi.entities.ReviewCommentEntity;
 import chronos.codereviewapi.entities.ReviewStatusHistoryEntity;
@@ -593,23 +592,22 @@ public class ReviewRequestService {
                 reviewRequest.getRepositoryURL(),
                 reviewRequest.getPullRequestURL(),
                 reviewRequest.getStatus(),
-                toUserSummary(reviewRequest.getRequesterId()),
-                toUserSummary(reviewRequest.getReviewerId()),
-                reviewRequest.getUpdatedAt(),
-                reviewRequest.getCreatedAt()
+                toUserReference(reviewRequest.getRequesterId()),
+                toUserReference(reviewRequest.getReviewerId()),
+                reviewRequest.getCreatedAt(),
+                reviewRequest.getUpdatedAt()
         );
     }
 
-    // MAP USER ENTITY TO SUMMARY DTO
-    private UserSummaryResponse toUserSummary(UserEntity user) {
+    // MAP USER ENTITY TO PUBLIC REFERENCE DTO
+    private UserReferenceResponse toUserReference(UserEntity user) {
         if (user == null) {
             return null;
         }
 
-        return new UserSummaryResponse(
-                user.getName(),
-                user.getEmail(),
-                user.getRole()
+        return new UserReferenceResponse(
+                user.getId(),
+                user.getName()
         );
     }
 }
