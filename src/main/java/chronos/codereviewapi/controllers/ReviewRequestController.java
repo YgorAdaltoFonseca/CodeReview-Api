@@ -10,10 +10,14 @@ import chronos.codereviewapi.dtos.responses.ReviewRequestResponse;
 import chronos.codereviewapi.dtos.responses.ReviewCommentResponse;
 import chronos.codereviewapi.dtos.responses.ReviewHistoryResponse;
 import chronos.codereviewapi.enums.ReviewStatus;
+import chronos.codereviewapi.exceptions.ErrorResponse;
 import chronos.codereviewapi.services.ReviewRequestService;
 
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
@@ -26,6 +30,20 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @SecurityRequirement(name = "bearerAuth")
+@ApiResponses({
+        @ApiResponse(responseCode = "400", description = "Invalid input or pagination parameters",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+        @ApiResponse(responseCode = "401", description = "Authentication is required",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+        @ApiResponse(responseCode = "403", description = "The authenticated user is not allowed to perform this operation",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+        @ApiResponse(responseCode = "404", description = "The request does not exist or is not visible to this user",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+        @ApiResponse(responseCode = "409", description = "The request state does not allow this operation",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+        @ApiResponse(responseCode = "500", description = "An unexpected server error occurred",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+})
 @RequiredArgsConstructor
 @RequestMapping("/api/reviews")
 public class ReviewRequestController {
