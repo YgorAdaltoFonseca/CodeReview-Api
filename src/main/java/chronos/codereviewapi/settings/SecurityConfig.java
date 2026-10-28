@@ -1,10 +1,13 @@
 package chronos.codereviewapi.settings;
 
+import chronos.codereviewapi.exceptions.ErrorResponse;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -22,8 +25,11 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
 
+import jakarta.servlet.http.HttpServletResponse;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
+import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.Base64;
 
 @Configuration
@@ -37,6 +43,22 @@ public class SecurityConfig {
 
         http
                 .csrf(csrf -> csrf.disable())
+                .exceptionHandling(errors -> errors
+                        .authenticationEntryPoint((request, response, exception) ->
+                                writeSecurityError(
+                                        response,
+                                        HttpStatus.UNAUTHORIZED,
+                                        "Authentication is required."
+                                )
+                        )
+                        .accessDeniedHandler((request, response, exception) ->
+                                writeSecurityError(
+                                        response,
+                                        HttpStatus.FORBIDDEN,
+                                        "You do not have permission to perform this operation."
+                                )
+                        )
+                )
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(
                                 SessionCreationPolicy.STATELESS
@@ -56,16 +78,54 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer(oauth2 ->
-                        oauth2.jwt(jwt ->
-                                jwt.jwtAuthenticationConverter(
-                                        jwtAuthenticationConverter()
+                        oauth2
+                                .authenticationEntryPoint((request, response, exception) ->
+                                        writeSecurityError(
+                                                response,
+                                                HttpStatus.UNAUTHORIZED,
+                                                "Authentication is required."
+                                        )
                                 )
-                        )
+                                .accessDeniedHandler((request, response, exception) ->
+                                        writeSecurityError(
+                                                response,
+                                                HttpStatus.FORBIDDEN,
+                                                "You do not have permission to perform this operation."
+                                        )
+                                )
+                                .jwt(jwt ->
+                                        jwt.jwtAuthenticationConverter(
+                                                jwtAuthenticationConverter()
+                                        )
+                                )
                 );
 
         return http.build();
     }
 
+    private void writeSecurityError(
+            HttpServletResponse response,
+            HttpStatus status,
+            String message
+    ) throws IOException {
+        response.setStatus(status.value());
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        ErrorResponse error = new ErrorResponse(
+                status.value(),
+                status.name(),
+                message,
+                LocalDateTime.now()
+        );
+        response.getWriter().write(
+                "{\"status\":%d,\"error\":\"%s\",\"message\":\"%s\",\"timestamp\":\"%s\"}"
+                        .formatted(
+                                error.status(),
+                                error.error(),
+                                error.message(),
+                                error.timestamp()
+                        )
+        );
+    }
     @Bean
     public JwtAuthenticationConverter jwtAuthenticationConverter() {
 

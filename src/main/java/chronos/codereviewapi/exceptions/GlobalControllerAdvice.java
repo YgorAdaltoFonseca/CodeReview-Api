@@ -8,6 +8,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -164,6 +165,7 @@ public class GlobalControllerAdvice {
 
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.BAD_REQUEST.value(),
+                "VALIDATION_ERROR",
                 message,
                 LocalDateTime.now()
         );
@@ -189,6 +191,20 @@ public class GlobalControllerAdvice {
         );
 
         return ResponseEntity.status(ex.getStatusCode()).body(error);
+    }
+    // MALFORMED JSON OR ENUM VALUES - 400
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleUnreadableRequestBody(
+            HttpMessageNotReadableException ex
+    ) {
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                "INVALID_REQUEST_BODY",
+                "Request body is invalid or contains unsupported values.",
+                LocalDateTime.now()
+        );
+
+        return ResponseEntity.badRequest().body(error);
     }
     // GENERIC INTERNAL SERVER ERROR - 500
     @ExceptionHandler(Exception.class)
