@@ -295,6 +295,38 @@ public class ReviewRequestService {
         return toResponse(savedRequest);
     }
 
+    // RETURN A REQUEST WITH REQUESTED CHANGES TO ITS ASSIGNED REVIEWER
+    @Transactional
+    public ReviewRequestResponse resubmitReviewRequest(Long reviewRequestId) {
+        UserEntity requester =
+                authenticatedUserService.getAuthenticatedUser();
+        ReviewRequestEntity reviewRequest =
+                getRequestForDeveloperUpdate(reviewRequestId, requester);
+
+        if (reviewRequest.getStatus() != ReviewStatus.CHANGES_REQUESTED
+                || reviewRequest.getReviewerId() == null) {
+            throw new ReviewRequestConflictException(
+                    "Only requests with requested changes can be resubmitted."
+            );
+        }
+
+        ReviewStatus oldStatus = reviewRequest.getStatus();
+        reviewRequest.setStatus(ReviewStatus.IN_REVIEW);
+        ReviewRequestEntity savedRequest =
+                reviewRequestRepository.save(reviewRequest);
+
+        reviewStatusHistoryRepository.save(
+                ReviewStatusHistoryEntity.builder()
+                        .reviewRequest(savedRequest)
+                        .changedById(requester)
+                        .oldStatus(oldStatus)
+                        .newStatus(ReviewStatus.IN_REVIEW)
+                        .build()
+        );
+
+        return toResponse(savedRequest);
+    }
+
     // CLAIM AN OPEN REQUEST FOR THE AUTHENTICATED REVIEWER
     @Transactional
     public ReviewRequestResponse claimReviewRequest(Long reviewRequestId) {

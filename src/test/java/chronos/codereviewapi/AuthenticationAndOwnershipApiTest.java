@@ -135,13 +135,24 @@ class AuthenticationAndOwnershipApiTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("CHANGES_REQUESTED"));
 
+        mockMvc.perform(patch("/api/reviews/{id}/resubmit", requestId.longValue())
+                        .header("Authorization", "Bearer " + otherReviewerToken))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(patch("/api/reviews/{id}/resubmit", requestId.longValue())
+                        .header("Authorization", "Bearer " + ownerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("IN_REVIEW"))
+                .andExpect(jsonPath("$.reviewer.id").exists());
+
         mockMvc.perform(get("/api/reviews/{id}/history", requestId.longValue())
                         .header("Authorization", "Bearer " + assignedReviewerToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.history.length()").value(3))
+                .andExpect(jsonPath("$.history.length()").value(4))
                 .andExpect(jsonPath("$.history[0].newStatus").value("OPEN"))
                 .andExpect(jsonPath("$.history[1].newStatus").value("IN_REVIEW"))
-                .andExpect(jsonPath("$.history[2].newStatus").value("CHANGES_REQUESTED"));
+                .andExpect(jsonPath("$.history[2].newStatus").value("CHANGES_REQUESTED"))
+                .andExpect(jsonPath("$.history[3].newStatus").value("IN_REVIEW"));
     }
 
     private String registerAndLogin(String email) throws Exception {

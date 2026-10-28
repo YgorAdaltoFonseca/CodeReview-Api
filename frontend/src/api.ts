@@ -54,6 +54,7 @@ export const api = {
   createReview: (body: { title: string; description: string; repositoryUrl: string; pullRequestUrl: string }) => request<ReviewRequest>('/reviews', json(body)),
   updateReview: (id: number, body: { title: string; description: string }) => request<ReviewRequest>(`/reviews/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   cancelReview: (id: number) => request<ReviewRequest>(`/reviews/${id}/cancel`, { method: 'PATCH' }),
+  resubmitReview: (id: number) => request<ReviewRequest>(`/reviews/${id}/resubmit`, { method: 'PATCH' }),
   claimReview: (id: number) => request<ReviewRequest>(`/reviews/${id}/claim`, { method: 'PATCH' }),
   listComments: (id: number) => request<ReviewComment[]>(`/reviews/${id}/comments`),
   addComment: (id: number, content: string) => request<ReviewComment>(`/reviews/${id}/comments`, json({ content })),

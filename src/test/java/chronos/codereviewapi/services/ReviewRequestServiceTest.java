@@ -309,6 +309,59 @@ class ReviewRequestServiceTest {
     }
 
     @Test
+    void developerResubmitsRequestedChangesToTheAssignedReviewer() {
+        UserEntity requester = createUser(7L, Role.DEVELOPER);
+        UserEntity reviewer = createUser(8L, Role.REVIEWER);
+        ReviewRequestEntity reviewRequest = createReviewRequest(
+                requester,
+                reviewer,
+                ReviewStatus.CHANGES_REQUESTED
+        );
+        when(authenticatedUserService.getAuthenticatedUser())
+                .thenReturn(requester);
+        when(reviewRequestRepository.findByIdForUpdate(42L))
+                .thenReturn(Optional.of(reviewRequest));
+        when(reviewRequestRepository.save(reviewRequest))
+                .thenReturn(reviewRequest);
+
+        ReviewRequestResponse response =
+                reviewRequestService.resubmitReviewRequest(42L);
+
+        ArgumentCaptor<ReviewStatusHistoryEntity> historyCaptor =
+                ArgumentCaptor.forClass(ReviewStatusHistoryEntity.class);
+        verify(reviewStatusHistoryRepository).save(historyCaptor.capture());
+        ReviewStatusHistoryEntity history = historyCaptor.getValue();
+
+        assertEquals(ReviewStatus.IN_REVIEW, response.status());
+        assertSame(reviewer, reviewRequest.getReviewerId());
+        assertEquals(ReviewStatus.CHANGES_REQUESTED, history.getOldStatus());
+        assertEquals(ReviewStatus.IN_REVIEW, history.getNewStatus());
+        assertSame(requester, history.getChangedById());
+    }
+
+    @Test
+    void requestCannotBeResubmittedUnlessChangesWereRequested() {
+        UserEntity requester = createUser(7L, Role.DEVELOPER);
+        ReviewRequestEntity reviewRequest = createReviewRequest(
+                requester,
+                createUser(8L, Role.REVIEWER),
+                ReviewStatus.OPEN
+        );
+        when(authenticatedUserService.getAuthenticatedUser())
+                .thenReturn(requester);
+        when(reviewRequestRepository.findByIdForUpdate(42L))
+                .thenReturn(Optional.of(reviewRequest));
+
+        assertThrows(
+                ReviewRequestConflictException.class,
+                () -> reviewRequestService.resubmitReviewRequest(42L)
+        );
+
+        verify(reviewRequestRepository, never()).save(reviewRequest);
+        verifyNoInteractions(reviewStatusHistoryRepository);
+    }
+
+    @Test
     void reviewerClaimsOpenRequestAndHistoryIsRecorded() {
         UserEntity reviewer = createUser(8L, Role.REVIEWER);
         ReviewRequestEntity reviewRequest = createReviewRequest(

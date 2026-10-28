@@ -42,6 +42,7 @@ textarea { resize: vertical; min-height: 90px; line-height: 1.5; }
 .button-secondary:hover:not(:disabled) { background: #f5f7fa; }
 .button-quiet { min-height: 34px; padding: 6px 10px; background: transparent; color: #647189; border-color: #e5e8ed; }
 .button-danger { margin-top: 18px; background: #fff; border-color: #e9caca; color: #a34747; }
+.resubmit-button { margin-left: 8px; }
 .button-danger:hover:not(:disabled) { background: #fff7f7; }
 .full-width { width: 100%; }
 .table-wrap { overflow-x: auto; }

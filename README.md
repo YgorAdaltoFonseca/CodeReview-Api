@@ -119,6 +119,7 @@ The GitHub Actions workflow builds and tests the application against PostgreSQL,
 | `GET` | `/api/reviews/{id}` | Authorized request participants |
 | `PATCH` | `/api/reviews/{id}` | Request owner while status is `OPEN` |
 | `PATCH` | `/api/reviews/{id}/cancel` | Request owner while cancellation is allowed |
+| `PATCH` | `/api/reviews/{id}/resubmit` | Request owner after addressing requested changes |
 | `PATCH` | `/api/reviews/{id}/claim` | `REVIEWER` |
 | `POST` | `/api/reviews/{id}/comments` | Assigned reviewer |
 | `POST` | `/api/reviews/{id}/decision` | Assigned reviewer |

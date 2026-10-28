@@ -96,6 +96,16 @@ public class ReviewRequestController {
         );
     }
 
+    // RESUBMIT A REQUEST AFTER THE DEVELOPER ADDRESSES REQUESTED CHANGES
+    @PatchMapping("/{id}/resubmit")
+    public ResponseEntity<ReviewRequestResponse> resubmitReviewRequest(
+            @PathVariable Long id
+    ) {
+        return ResponseEntity.ok(
+                reviewRequestService.resubmitReviewRequest(id)
+        );
+    }
+
     // CLAIM AN OPEN REQUEST FOR REVIEW
     @PatchMapping("/{id}/claim")
     public ResponseEntity<ReviewRequestResponse> claimReviewRequest(
