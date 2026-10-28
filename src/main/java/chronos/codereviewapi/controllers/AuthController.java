@@ -8,6 +8,7 @@ import chronos.codereviewapi.dtos.responses.auth.RegisterResponse;
 import chronos.codereviewapi.services.settingsServices.AuthService;
 
 import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +22,7 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/register")
+    @ApiResponse(responseCode = "201", description = "Developer account created")
     public ResponseEntity<RegisterResponse> register(
             @Valid @RequestBody RegisterRequest request
     ) {

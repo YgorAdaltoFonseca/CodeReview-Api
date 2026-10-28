@@ -11,6 +11,7 @@ A REST API for managing code review requests. Developers create and track reques
 - Reviewer comments, decisions, and immutable status history
 - Paginated administrative user listing and reviewer promotion
 - OpenAPI documentation with Swagger UI
+- React and TypeScript web interface for developers, reviewers, and administrators
 
 ## Technology
 
@@ -19,6 +20,7 @@ A REST API for managing code review requests. Developers create and track reques
 - Spring Data JPA and PostgreSQL
 - Maven
 - Docker Compose
+- React, TypeScript, Vite, and React Router
 
 ## Run with Docker Compose
 
@@ -31,7 +33,7 @@ A REST API for managing code review requests. Developers create and track reques
 docker compose up --build
 ```
 
-The API is available at `http://localhost:8080`. Swagger UI is available at `http://localhost:8080/swagger-ui/index.html`; the OpenAPI document is at `http://localhost:8080/v3/api-docs`.
+The web interface is available at `http://localhost:3000`. The API is available at `http://localhost:8080`. Swagger UI is available at `http://localhost:8080/swagger-ui/index.html`; the OpenAPI document is at `http://localhost:8080/v3/api-docs`.
 
 To stop the services while preserving PostgreSQL data:
 
@@ -82,6 +84,20 @@ export DB_PASSWORD="$POSTGRES_PASSWORD"
 
 The default local database URL is `jdbc:postgresql://localhost:5432/codereview`; override `DB_URL` if your PostgreSQL instance uses a different host or port. Docker Compose passes the database and JWT settings directly to the API container.
 
+## Run the frontend locally
+
+Install Node.js 22.12 or newer and pnpm 11. Then start the API and PostgreSQL as described above. In another terminal:
+
+```bash
+cd frontend
+pnpm install --frozen-lockfile
+pnpm dev
+```
+
+Vite serves the interface at `http://localhost:5173` and proxies `/api` calls to `http://localhost:8080`. In Compose, Nginx serves the built frontend on port `3000` and forwards API requests to the backend container.
+
+The JWT stays in browser memory and is cleared when the page is reloaded or the user signs out. This avoids persistent browser storage and cookie-based CSRF exposure; a page refresh requires the user to log in again. The UI uses the role claim only to show relevant navigation. The backend still checks roles and resource ownership on every protected operation.
+
 ## Run tests
 
 Tests use PostgreSQL. Start the database first, then run:
@@ -90,7 +106,7 @@ Tests use PostgreSQL. Start the database first, then run:
 ./mvnw test
 ```
 
-The GitHub Actions workflow also builds and tests the application against PostgreSQL and validates the Docker image.
+The GitHub Actions workflow builds and tests the application against PostgreSQL, builds the frontend, and validates both Docker images.
 
 ## Main API endpoints
 
@@ -114,6 +130,23 @@ For protected endpoints, log in and send the returned token as:
 
 ```http
 Authorization: Bearer <token>
+```
+
+Example registration, login, and review request creation:
+
+```bash
+curl -X POST http://localhost:8080/api/auth/register \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"Alex Developer","email":"alex@example.com","password":"SafePassword123!"}'
+
+TOKEN=$(curl -s -X POST http://localhost:8080/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"alex@example.com","password":"SafePassword123!"}' | jq -r '.token')
+
+curl -X POST http://localhost:8080/api/reviews \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"title":"Review login flow","description":"Please review token validation.","repositoryUrl":"https://github.com/example/app","pullRequestUrl":"https://github.com/example/app/pull/12"}'
 ```
 
 The registration endpoint always assigns `DEVELOPER`; it does not accept a role from the client. The bootstrap configuration is the supported way to create the first administrator in a fresh database. After startup, disable the bootstrap setting and remove the bootstrap password from the local environment file.

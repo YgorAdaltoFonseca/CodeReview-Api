@@ -28,6 +28,7 @@ public class JwtService {
                 .subject(user.getUsername())
                 .issuedAt(now)
                 .expiresAt(now.plus(TOKEN_EXPIRATION_SECONDS, ChronoUnit.SECONDS))
+                .claim("userId", user.getId())
                 .claim(
                         "role",
                         user.getAuthorities()

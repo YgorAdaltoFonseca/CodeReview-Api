@@ -60,6 +60,22 @@
         - name: Build and run tests
           run: ./mvnw -B -e -DtrimStackTrace=false clean verify
 
+        - name: Set up pnpm
+          uses: pnpm/action-setup@v4
+          with:
+            version: 11.25.0
+
+        - name: Set up Node.js
+          uses: actions/setup-node@v4
+          with:
+            node-version: 24
+            cache: pnpm
+            cache-dependency-path: frontend/pnpm-lock.yaml
+
+        - name: Build frontend
+          working-directory: frontend
+          run: pnpm install --frozen-lockfile && pnpm build
+
         - name: Upload test reports
           if: always()
           uses: actions/upload-artifact@v4
@@ -91,3 +107,6 @@
 
         - name: Build Docker image
           run: docker build --progress=plain -t codereview-api:ci .
+
+        - name: Build frontend Docker image
+          run: docker build --progress=plain -t codereview-frontend:ci ./frontend
