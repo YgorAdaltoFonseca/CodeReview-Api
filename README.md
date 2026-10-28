@@ -55,7 +55,32 @@ On Windows PowerShell, use:
 .\mvnw.cmd spring-boot:run
 ```
 
-The default local database URL is `jdbc:postgresql://localhost:5432/codereview`. Configure `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, and `JWT_SECRET` as environment variables when your local settings differ. `JWT_SECRET` must be Base64 and decode to at least 32 bytes. The sample value in `.env.example` is for local development only; replace it outside a disposable local environment.
+The application requires `DB_PASSWORD` and `JWT_SECRET`; it has no built-in credential defaults. `JWT_SECRET` must be Base64 and decode to at least 32 bytes. The sample key in `.env.example` is for disposable local development only; use a separately generated key outside that environment.
+
+For PowerShell, load your local `.env` values and map the PostgreSQL variables before running the API or its tests:
+
+```powershell
+Get-Content .env | Where-Object { $_ -match '^\s*[^#].*=' } | ForEach-Object {
+    $name, $value = $_ -split '=', 2
+    [Environment]::SetEnvironmentVariable($name.Trim(), $value.Trim(), 'Process')
+}
+$env:DB_URL = "jdbc:postgresql://localhost:5432/$env:POSTGRES_DB"
+$env:DB_USERNAME = $env:POSTGRES_USER
+$env:DB_PASSWORD = $env:POSTGRES_PASSWORD
+```
+
+For Bash, export the `.env` values and map the database variables in the current shell:
+
+```bash
+set -a
+source .env
+set +a
+export DB_URL="jdbc:postgresql://localhost:5432/$POSTGRES_DB"
+export DB_USERNAME="$POSTGRES_USER"
+export DB_PASSWORD="$POSTGRES_PASSWORD"
+```
+
+The default local database URL is `jdbc:postgresql://localhost:5432/codereview`; override `DB_URL` if your PostgreSQL instance uses a different host or port. Docker Compose passes the database and JWT settings directly to the API container.
 
 ## Run tests
 
