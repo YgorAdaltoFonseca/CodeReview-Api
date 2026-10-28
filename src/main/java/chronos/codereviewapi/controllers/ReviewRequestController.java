@@ -13,6 +13,7 @@ import chronos.codereviewapi.enums.ReviewStatus;
 import chronos.codereviewapi.services.ReviewRequestService;
 
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
@@ -33,6 +34,7 @@ public class ReviewRequestController {
 
     // CREATE REVIEW REQUEST
     @PostMapping
+    @ApiResponse(responseCode = "201", description = "Review request created")
     public ResponseEntity<ReviewRequestResponse> createReviewRequest(
             @Valid @RequestBody ReviewRequestRequest request
     ) {
@@ -106,6 +108,7 @@ public class ReviewRequestController {
 
     // ADD COMMENT TO A REVIEW IN PROGRESS
     @PostMapping("/{id}/comments")
+    @ApiResponse(responseCode = "201", description = "Comment created")
     public ResponseEntity<ReviewCommentResponse> addComment(
             @PathVariable Long id,
             @Valid @RequestBody CreateCommentRequest request
