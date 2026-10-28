@@ -1,10 +1,13 @@
 package chronos.codereviewapi.settings;
 
+import chronos.codereviewapi.exceptions.ErrorResponse;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -18,10 +21,15 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
 
+import jakarta.servlet.http.HttpServletResponse;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
+import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.Base64;
 
 @Configuration
@@ -35,8 +43,26 @@ public class SecurityConfig {
 
         http
                 .csrf(csrf -> csrf.disable())
+                .exceptionHandling(errors -> errors
+                        .authenticationEntryPoint((request, response, exception) ->
+                                writeSecurityError(
+                                        response,
+                                        HttpStatus.UNAUTHORIZED,
+                                        "Authentication is required."
+                                )
+                        )
+                        .accessDeniedHandler((request, response, exception) ->
+                                writeSecurityError(
+                                        response,
+                                        HttpStatus.FORBIDDEN,
+                                        "You do not have permission to perform this operation."
+                                )
+                        )
+                )
                 .sessionManagement(session ->
-                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                        session.sessionCreationPolicy(
+                                SessionCreationPolicy.STATELESS
+                        )
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
@@ -52,11 +78,71 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer(oauth2 ->
-                        oauth2.jwt(jwt -> {
-                        })
+                        oauth2
+                                .authenticationEntryPoint((request, response, exception) ->
+                                        writeSecurityError(
+                                                response,
+                                                HttpStatus.UNAUTHORIZED,
+                                                "Authentication is required."
+                                        )
+                                )
+                                .accessDeniedHandler((request, response, exception) ->
+                                        writeSecurityError(
+                                                response,
+                                                HttpStatus.FORBIDDEN,
+                                                "You do not have permission to perform this operation."
+                                        )
+                                )
+                                .jwt(jwt ->
+                                        jwt.jwtAuthenticationConverter(
+                                                jwtAuthenticationConverter()
+                                        )
+                                )
                 );
 
         return http.build();
+    }
+
+    private void writeSecurityError(
+            HttpServletResponse response,
+            HttpStatus status,
+            String message
+    ) throws IOException {
+        response.setStatus(status.value());
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        ErrorResponse error = new ErrorResponse(
+                status.value(),
+                status.name(),
+                message,
+                LocalDateTime.now()
+        );
+        response.getWriter().write(
+                "{\"status\":%d,\"error\":\"%s\",\"message\":\"%s\",\"timestamp\":\"%s\"}"
+                        .formatted(
+                                error.status(),
+                                error.error(),
+                                error.message(),
+                                error.timestamp()
+                        )
+        );
+    }
+    @Bean
+    public JwtAuthenticationConverter jwtAuthenticationConverter() {
+
+        JwtGrantedAuthoritiesConverter authoritiesConverter =
+                new JwtGrantedAuthoritiesConverter();
+
+        authoritiesConverter.setAuthoritiesClaimName("role");
+        authoritiesConverter.setAuthorityPrefix("ROLE_");
+
+        JwtAuthenticationConverter converter =
+                new JwtAuthenticationConverter();
+
+        converter.setJwtGrantedAuthoritiesConverter(
+                authoritiesConverter
+        );
+
+        return converter;
     }
 
     @Bean
@@ -70,7 +156,10 @@ public class SecurityConfig {
     ) {
         byte[] keyBytes = Base64.getDecoder().decode(secret);
 
-        SecretKey key = new SecretKeySpec(keyBytes, "HmacSHA256");
+        SecretKey key = new SecretKeySpec(
+                keyBytes,
+                "HmacSHA256"
+        );
 
         return new NimbusJwtEncoder(
                 new ImmutableSecret<>(key)
@@ -79,8 +168,8 @@ public class SecurityConfig {
 
     @Bean
     public JwtDecoder jwtDecoder(
-            @Value("${jwt.secret}") String secret) {
-
+            @Value("${jwt.secret}") String secret
+    ) {
         byte[] keyBytes;
 
         try {
@@ -98,7 +187,10 @@ public class SecurityConfig {
             );
         }
 
-        SecretKey key = new SecretKeySpec(keyBytes, "HmacSHA256");
+        SecretKey key = new SecretKeySpec(
+                keyBytes,
+                "HmacSHA256"
+        );
 
         return NimbusJwtDecoder.withSecretKey(key)
                 .macAlgorithm(MacAlgorithm.HS256)

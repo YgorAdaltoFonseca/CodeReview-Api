@@ -1,4 +1,4 @@
-package chronos.codereviewapi.services;
+package chronos.codereviewapi.services.settingsServices;
 
 import chronos.codereviewapi.entities.UserEntity;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +16,8 @@ import java.time.temporal.ChronoUnit;
 @RequiredArgsConstructor
 public class JwtService {
 
+    public static final long TOKEN_EXPIRATION_SECONDS = 900;
+
     private final JwtEncoder jwtEncoder;
 
     public String generateToken(UserEntity user) {
@@ -25,7 +27,8 @@ public class JwtService {
                 .issuer("codereview-api")
                 .subject(user.getUsername())
                 .issuedAt(now)
-                .expiresAt(now.plus(15, ChronoUnit.MINUTES))
+                .expiresAt(now.plus(TOKEN_EXPIRATION_SECONDS, ChronoUnit.SECONDS))
+                .claim("userId", user.getId())
                 .claim(
                         "role",
                         user.getAuthorities()
