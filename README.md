@@ -108,6 +108,30 @@ Tests use PostgreSQL. Start the database first, then run:
 
 The GitHub Actions workflow builds and tests the application against PostgreSQL, builds the frontend, and validates both Docker images.
 
+## Measure paginated review-list performance
+
+The initial performance target is a p95 response time below 500 ms for `GET /api/reviews?page=0&size=10&sort=createdAt,desc` with 10 concurrent virtual users over 60 seconds. The scenario is in `performance/reviews-load.js` and uses the real API and database; it does not create or delete test data.
+
+Run the API and PostgreSQL first. Use a dedicated test account with a representative number of review requests and do not run this scenario against production. The list is scoped to the account's role and ownership, so record the test account role and its visible request count with the result. The 500 ms target is not considered verified until the scenario passes against the intended dataset on a recorded environment. The script configuration was validated with k6 v2.3.0; the actual latency target still needs a run against a representative dataset.
+
+With k6 installed, set the credentials in the current shell and run:
+
+```bash
+export K6_BASE_URL=http://localhost:8080
+export K6_EMAIL=load-test@example.com
+export K6_PASSWORD='use-a-test-account-password'
+k6 run performance/reviews-load.js
+```
+
+The same script can run in Docker without installing k6 locally. The image digest pins k6 v2.3.0 so results can be reproduced with the same runner. From PowerShell, set `K6_EMAIL` and `K6_PASSWORD` in the current session, then stream the script to k6:
+
+```powershell
+$env:K6_BASE_URL = 'http://host.docker.internal:8080'
+Get-Content -Raw .\performance\reviews-load.js | docker run --rm -i --env K6_BASE_URL --env K6_EMAIL --env K6_PASSWORD grafana/k6@sha256:3e4186aea62e11a45560bfc51e19eeafe82fc07ce069c78aff44b7ff893d9a5e run -
+```
+
+The report includes p95 latency and failed-request rate. A non-zero exit code means a threshold or check failed. Run the official k6 container as described in the [Grafana k6 Docker instructions](https://grafana.com/docs/k6/latest/get-started/running-k6/).
+
 ## Main API endpoints
 
 | Method | Endpoint | Access |

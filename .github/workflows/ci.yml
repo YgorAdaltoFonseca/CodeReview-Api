@@ -105,6 +105,9 @@
         - name: Checkout repository
           uses: actions/checkout@v4
 
+        - name: Validate performance scenario
+          run: docker run --rm -i grafana/k6@sha256:3e4186aea62e11a45560bfc51e19eeafe82fc07ce069c78aff44b7ff893d9a5e inspect - < performance/reviews-load.js
+
         - name: Build Docker image
           run: docker build --progress=plain -t codereview-api:ci .
 
